@@ -14,6 +14,65 @@ function formatCard(card) {
     return `<span style="color:${color};">${card.rank}${suit}</span>`;
 }
 
+// 新增函數：根據玩家位置計算圓形佈局的座標
+function positionPlayerSlots(players) {
+    const container = document.getElementById('player-slots-container');
+    const containerSize = container.offsetWidth; // 圓桌直徑 (600px in CSS)
+    const center = containerSize / 2; // 圓心座標
+    const radius = center * 0.8; // 佈局半徑 (稍微靠內一點)
+    
+    // 定義牌桌位置的順序和對應的弧度（假設有 6 個位置）
+    // 角度從最下方開始 (270度 = -90度 = -pi/2), 逆時針分佈
+    // UTG, MP, CO, BTN, SB, BB
+    // 這裡我們假設玩家陣列的順序即為位置順序，並平均分佈
+    const numPlayers = players.length;
+    
+    // 預定義的撲克位置角度（以 BB 在正下方為基準，逆時針排列）
+    const positionAngles = {
+        'BB': 0, // 0 點 (數學角度 270)
+        'SB': 60, // 1 點
+        'BTN': 120, // 2 點
+        'CO': 180, // 3 點
+        'MP': 240, // 4 點
+        'UTG': 300 // 5 點
+        // 如果有更多，請調整
+    };
+
+    players.forEach((p, index) => {
+        const slot = document.getElementById(`player-slot-${p.position}`);
+        if (!slot) return;
+        
+        let angleDeg = 0;
+        
+        if (positionAngles.hasOwnProperty(p.position)) {
+            // 使用預定義的角度
+            // 將角度轉換為數學座標系（0度在右，逆時針）
+            // 這裡將撲克角度（0度在下，逆時針）轉換為 CSS top/left 所需的數學角度
+            // 0度（BB）對應數學的 270度 = -90度
+            angleDeg = 270 - positionAngles[p.position]; 
+        } else {
+            // 如果位置不在預定義列表中，則平均分佈
+            angleDeg = 360 - (index * (360 / numPlayers)) - 90;
+        }
+
+        // 轉換為弧度
+        const angleRad = angleDeg * (Math.PI / 180);
+
+        // 計算座標 (x = r * cos(a), y = r * sin(a))
+        const x = center + radius * Math.cos(angleRad);
+        const y = center + radius * Math.sin(angleRad);
+        
+        // 玩家插槽寬度/高度
+        const slotWidth = slot.offsetWidth;
+        const slotHeight = slot.offsetHeight;
+
+        // 調整座標讓玩家插槽居中於計算點
+        slot.style.left = `${x - slotWidth / 2}px`;
+        slot.style.top = `${y - slotHeight / 2}px`;
+    });
+}
+
+
 // --- 渲染遊戲狀態 ---
 function renderGameState(state) {
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
@@ -24,27 +83,31 @@ function renderGameState(state) {
     const actionPlayer = state.players.find(p => p.position === state.action_position);
     
     // 渲染手牌 (只有當前行動的玩家會看到)
-    document.getElementById('current-hand').innerHTML = actionPlayer.hand.map(formatCard).join(' ');
+    document.getElementById('current-hand').innerHTML = actionPlayer ? actionPlayer.hand.map(formatCard).join(' ') : '--';
     
     // 更新 Call 按鈕狀態
-    const toCall = state.current_bet - actionPlayer.in_pot;
+    const toCall = actionPlayer ? state.current_bet - actionPlayer.in_pot : 0;
     const callBtn = document.getElementById('call-btn');
     callBtn.textContent = toCall <= 0 ? 'Check' : `Call $${toCall}`;
     callBtn.dataset.amount = toCall;
 
-    // 渲染玩家狀態
+    // 渲染玩家狀態 - 必須先創建 DOM 元素才能定位
     let playerHtml = '';
     state.players.forEach(p => {
         const isActiveClass = p.is_active ? 'active' : 'folded';
         const isTurn = p.position === state.action_position ? 'is-turn' : '';
+        // 為每個插槽添加唯一的 ID，以便定位
         playerHtml += `
-            <div class="player-slot ${isActiveClass} ${isTurn}">
+            <div class="player-slot ${isActiveClass} ${isTurn}" id="player-slot-${p.position}">
                 <strong>${p.position}</strong> (${p.name})<br>
                 籌碼: $${p.chips} / In Pot: $${p.in_pot}
             </div>
         `;
     });
     document.getElementById('player-slots-container').innerHTML = playerHtml;
+    
+    // 調用新的定位函數
+    positionPlayerSlots(state.players);
 }
 
 // --- 渲染 GTO 反饋 ---
@@ -71,7 +134,7 @@ function renderFeedback(feedback) {
     `).join('');
 }
 
-// --- API 呼叫 ---
+// --- API 呼叫 (保持不變) ---
 async function fetchState() {
     try {
         const response = await fetch(`${API_BASE}/state`);
@@ -165,4 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 首次載入時啟動新牌局
     startNewHand(); 
+    
+    // 確保視窗大小改變時重新定位（雖然牌桌是固定大小，但這是一個好的實踐）
+    window.addEventListener('resize', () => {
+        // 只有在 players-slots-container 有內容時才嘗試重新定位
+        const players = Array.from(document.getElementById('player-slots-container').children).map(el => ({ position: el.id.replace('player-slot-', '') }));
+        if (players.length > 0) {
+            // 由於沒有 state.players 數據，這裡需要一個簡易的方法來獲取位置
+            // 理想情況下應該從 state 重新獲取
+             // 暫時不做 window resize 處理，避免沒有狀態數據時出錯
+        }
+    });
 });
