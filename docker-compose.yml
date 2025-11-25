@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: gto_poker_simulator
+    ports:
+      - "8088:8088"
+    env_file:
+      - .env
+    volumes:
+      - ./src/gto_poker_simulator/frontend/static:/app/frontend/static
+      - ./src:/app/src
+      
+    command: >
+      sh -c "PYTHONPATH=src uvicorn gto_poker_simulator.main:app --host 0.0.0.0 --port 8088 --reload"
+
+

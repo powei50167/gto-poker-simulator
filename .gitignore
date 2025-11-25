@@ -1,0 +1,8 @@
+# Python 編譯與快取檔案
+__pycache__/
+*.py[cod]
+
+# 虛擬環境
+.venv/
+.env
+*.log

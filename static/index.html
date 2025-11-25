@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>德州撲克 GTO 情境教學軟體</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app-container">
+        <main>
+            <header id="scenario-setup">
+                <h1>GTO 情境訓練</h1>
+                <p>當前手牌: <span id="current-hand">--</span></p>
+                <button id="start-hand-btn">開始新牌局 (POST /api/new_hand)</button>
+            </header>
+
+            <div id="table-view">
+                <div id="board-center">
+                    公共牌: <span id="community-cards">--</span>
+                    <div id="pot-size">POT: $0</div>
+                </div>
+                
+                <div id="player-slots-container">
+                    </div>
+            </div>
+
+            <section id="action-panel">
+                <p>輪到您行動 (<span id="current-position">--</span>):</p>
+                <div id="action-buttons">
+                    <button class="action-btn" data-type="Fold">棄牌 (Fold)</button>
+                    <button class="action-btn" data-type="Call" id="call-btn">跟注 ($0)</button>
+                    <button class="action-btn" data-type="Bet" id="bet-raise-btn">加注/下注</button>
+                </div>
+                
+                <div id="bet-control" style="margin-top: 15px;">
+                    金額: <input type="number" id="bet-amount-input" value="400" min="1">
+                    <button id="submit-bet-btn">確認下注</button>
+                </div>
+            </section>
+        </main>
+        
+        <aside id="feedback-panel">
+            <h2>GTO 策略分析</h2>
+            <div id="feedback-result"></div>
+            <div id="gto-matrix-display">
+                <h4>GTO 建議行動</h4>
+                <table>
+                    <thead><tr><th>行動</th><th>頻率</th><th>EV (BB)</th></tr></thead>
+                    <tbody id="gto-matrix-body">
+                        </tbody>
+                </table>
+            </div>
+            <div id="error-explanation"></div>
+        </aside>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
