@@ -9,7 +9,7 @@ from .schemas import GameState, UserAction, GTOFeedback
 app = FastAPI()
 
 # 初始化核心組件
-players_init = {'Player1': 2000, 'Player2': 2000, 'Player3': 2000, 
+players_init = {'hero': 2000, 'Player2': 2000, 'Player3': 2000, 
                 'Player4': 2000, 'Player5': 2000, 'Player6': 2000}
 game_table = Table(players_init, big_blind=20)
 gto_logic = StrategyLogic()
@@ -40,8 +40,7 @@ async def submit_action(action: UserAction):
     """用戶提交行動，並返回 GTO 評估"""
     
     # 獲取當前玩家的手牌和情境
-    current_hand = game_table.get_current_player().hand
-    current_situation = "BTN_CO_Flop_T72" # 假設情境識別碼
+    current_state = GameState(**game_table.get_state_for_frontend())
 
     # 1. 遊戲狀態更新
     try:
@@ -51,8 +50,7 @@ async def submit_action(action: UserAction):
     
     # 2. GTO 評估
     feedback = gto_logic.evaluate_user_action(
-        hand=current_hand,
-        situation=current_situation,
+        game_state=current_state,
         user_action=action
     )
     

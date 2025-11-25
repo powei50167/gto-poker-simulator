@@ -11,7 +11,6 @@
         <main>
             <header id="scenario-setup">
                 <h1>GTO 情境訓練</h1>
-                <p>當前手牌: <span id="current-hand">--</span></p>
                 <button id="start-hand-btn">開始新牌局 (POST /api/new_hand)</button>
             </header>
 
@@ -24,7 +23,13 @@
                 <div id="player-slots-container">
                 </div>
             </div>
-
+            <div id="player-hand-display">
+                <h2>您的手牌</h2>
+                <div id="current-hand" class="card-container">
+                    <div class="card-slot">?</div>
+                    <div class="card-slot">?</div>
+                </div>
+            </div>
             <section id="action-panel">
                 <p>輪到您行動 (<span id="current-position">--</span>):</p>
                 <div id="action-buttons">
@@ -38,7 +43,8 @@
                     <button id="submit-bet-btn">確認下注</button>
                 </div>
             </section>
-        </main>
+            
+            </main>
         
         <aside id="feedback-panel">
             <h2>GTO 策略分析</h2>

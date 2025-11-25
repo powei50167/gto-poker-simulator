@@ -38,35 +38,70 @@ class Player:
         }
 
 class Table:
-    POSITIONS = ['SB', 'BB', 'UTG', 'MP', 'CO', 'BTN']
+    POSITIONS = ['BB', 'SB', 'BTN', 'CO', 'MP', 'UTG']
+    HERO_POSITION = 'CO'
     
     def __init__(self, players_data: Dict[str, int], big_blind: int = 20):
         self.big_blind = big_blind
         self.players = [Player(name, chips) for name, chips in players_data.items()]
-        self.button_index = random.randint(0, 5)
+        self.button_index = random.randint(0, len(self.players) - 1)
         self.pot = 0
         self.community_cards: List[Card] = []
         self.current_bet = 0
         self.current_player_index = -1 # 當前行動的玩家索引
 
-    def start_hand(self):
-        """初始化並開始新的一手牌 (簡化版)"""
-        
-        # 這裡應該實現位置輪換、發牌、下盲注等邏輯...
-        # 簡化：假設已經發牌並下注到某個情境
-        
-        self.pot = 300 # 假設底池
-        self.current_bet = 200 # 假設當前最高注
-        self.current_player_index = 3 # 假設輪到 CO (索引 3) 行動
+    def _assign_positions(self):
+        """隨機分配位置，但確保 Hero 永遠位於底部插槽。"""
+        hero_player = next((p for p in self.players if p.name.lower() == 'hero'), None)
+        remaining_positions = [pos for pos in self.POSITIONS if pos != self.HERO_POSITION]
+        random.shuffle(remaining_positions)
 
-        # 示例手牌和公共牌
-        self.players[3].hand = [Card('A', 's'), Card('K', 'd')]
-        self.community_cards = [Card('T', 'c'), Card('7', 'h'), Card('2', 'd')]
-        
-        print("新的牌局已啟動，等待 CO 行動...")
+        for p in self.players:
+            p.in_pot = 0
+            p.is_active = True
+            p.hand = []
+
+        if hero_player:
+            hero_player.position = self.HERO_POSITION
+
+        other_players = [p for p in self.players if p is not hero_player]
+        for p, pos in zip(other_players, remaining_positions):
+            p.position = pos
+
+    def _deal_cards(self):
+        ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
+        suits = ['s', 'h', 'd', 'c']
+        deck = [Card(rank, suit) for rank in ranks for suit in suits]
+        random.shuffle(deck)
+
+        hero_player = self.get_hero()
+        if hero_player:
+            hero_player.hand = [deck.pop(), deck.pop()]
+
+        self.community_cards = [deck.pop() for _ in range(3)]
+
+    def get_hero(self) -> Player | None:
+        return next((p for p in self.players if p.name.lower() == 'hero'), None)
+    
+    def start_hand(self):
+        self._assign_positions()
+        self._deal_cards()
+
+        self.pot = 0
+        self.current_bet = self.big_blind
+
+        hero_player = self.get_hero()
+        if hero_player:
+            self.current_player_index = self.players.index(hero_player)
+        else:
+            self.current_player_index = 0
+
+        print("新的牌局已啟動，Hero 等待行動...")
         
     def get_current_player(self) -> Player:
         """獲取當前行動的玩家"""
+        if self.current_player_index < 0 or self.current_player_index >= len(self.players):
+            self.current_player_index = 0
         return self.players[self.current_player_index]
 
     def process_action(self, action: UserAction):

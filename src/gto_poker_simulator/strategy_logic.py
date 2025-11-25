@@ -1,23 +1,25 @@
 # src/gto_poker_simulator/strategy_logic.py
 import os
 from typing import List
-from src.api.schemas import GameState, UserAction, GTOFeedback, GTOActionData
+from src.api.schemas import GameState, UserAction, GTOFeedback, GTOActionData, CardModel
+from openai import OpenAI
 
 class StrategyLogic:
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_KEY")
-        try:
-            import openai
-            self.openai = openai
-        except ImportError:
-            self.openai = None
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.org = os.getenv("OPENAI_ORG")
+
+        if self.api_key:
+            self.client = OpenAI(api_key=self.api_key, organization=self.org)
+        else:
+            self.client = None
 
     def evaluate_user_action(self, game_state: GameState, user_action: UserAction) -> GTOFeedback:
         # 試圖從 game_state 中找出當前行動玩家與其手牌
         players = game_state.players
         action_position = game_state.action_position
-        acting_player = next((p for p in players if p.get("position") == action_position), None)
-        hand = acting_player.get("hand", []) if acting_player else []
+        acting_player = next((p for p in players if p.position == action_position), None)
+        hand = acting_player.hand if acting_player else []
 
         # 組合提示內容
         state_desc = self._build_state_description(game_state, hand)
@@ -35,11 +37,10 @@ class StrategyLogic:
 4. 用一句話簡要說明該建議的理由。
 """
 
-        if self.api_key and self.openai:
+        if self.api_key and self.client:
             try:
-                self.openai.api_key = self.api_key
-                response = self.openai.ChatCompletion.create(
-                    model="gpt-4",
+                response = self.client.ChatCompletion.create(
+                    model="gpt-5-mini",
                     messages=[{"role": "system", "content": "你是一位專業撲克GTO策略分析師。"},
                               {"role": "user", "content": prompt}]
                 )
@@ -49,9 +50,9 @@ class StrategyLogic:
                     user_action_correct=True,
                     ev_loss_bb=0.0,
                     gto_matrix=[
-                        GTOActionData(action="Call", frequency=0.5, ev_bb=0.0),
-                        GTOActionData(action="Raise", frequency=0.3, ev_bb=0.15),
-                        GTOActionData(action="Fold", frequency=0.2, ev_bb=-0.1)
+                        GTOActionData(action="Call", frequency=0, ev_bb=0),
+                        GTOActionData(action="Raise", frequency=0, ev_bb=0),
+                        GTOActionData(action="Fold", frequency=0, ev_bb=-0)
                     ],
                     explanation=reply.strip()
                 )
@@ -59,17 +60,16 @@ class StrategyLogic:
                 print(f"GPT error: {e}")
 
         # fallback 模式：簡化假數據
+        print(self.api_key)
         ev_loss = 0.0
         correct = True
         gto_matrix = [
-            GTOActionData(action="Check", frequency=0.5, ev_bb=0.0),
-            GTOActionData(action="Raise", frequency=0.25, ev_bb=0.1),
-            GTOActionData(action="Fold", frequency=0.25, ev_bb=-0.1)
+            GTOActionData(action="Check", frequency=0, ev_bb=0),
+            GTOActionData(action="Raise", frequency=0, ev_bb=0),
+            GTOActionData(action="Fold", frequency=0, ev_bb=-0)
         ]
         explanation = (
-            "示例評估：此處使用了簡化的邏輯來替代 GTO 模型，因此結果僅作為佔位。"
-            "若您提供了 OpenAI API 金鑰且安裝了 openai 套件，"
-            "則系統將自動從語言模型獲取更精準的評估。"
+            "AI AGENT異常無法獲取分析解果"
         )
         return GTOFeedback(
             user_action_correct=correct,
@@ -78,18 +78,15 @@ class StrategyLogic:
             explanation=explanation,
         )
 
-    def _build_state_description(self, game_state: GameState, hand: List[dict]) -> str:
-        board = " ".join([f"{c['rank']}{c['suit']}" for c in game_state.community_cards]) or "無"
-        cards = " ".join([f"{c['rank']}{c['suit']}" for c in hand]) or "未知"
+    def _build_state_description(self, game_state: GameState, hand: List[CardModel]) -> str:
+        board = " ".join([f"{c.rank}{c.suit}" for c in game_state.community_cards]) or "無"
+        cards = " ".join([f"{c.rank}{c.suit}" for c in hand]) or "未知"
         desc = (
-            f"目前底池為 {game_state.pot_size}。
-"
-            f"公共牌：{board}
-"
-            f"您手牌為：{cards}
-"
-            f"位置：{game_state.action_position}
-"
+            f"目前底池為 {game_state.pot_size}。\n"
+            f"公共牌：{board}\n"
+            f"您手牌為：{cards}\n"
+            f"位置：{game_state.action_position}\n"
             f"目前跟注金額為：{game_state.current_bet}。"
         )
         return desc
+

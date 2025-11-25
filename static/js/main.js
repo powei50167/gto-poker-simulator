@@ -67,7 +67,20 @@ function renderGameState(state) {
     const actionPlayer = state.players.find(p => p.position === state.action_position);
     
     // 渲染手牌
-    document.getElementById('current-hand').innerHTML = actionPlayer ? actionPlayer.hand.map(formatCard).join(' ') : '--';
+    const handDisplay = document.getElementById('current-hand');
+    if (actionPlayer) {
+        const cardHtml = actionPlayer.hand.map(card => {
+            const formatted = formatCard(card);
+            return `<div class="card-slot">${formatted}</div>`;
+        }).join('');
+        handDisplay.innerHTML = cardHtml;
+    } else {
+         // 如果沒有玩家信息（例如剛開始牌局），顯示問號卡背
+        handDisplay.innerHTML = `
+            <div class="card-slot">?</div>
+            <div class="card-slot">?</div>
+        `;
+    }
     
     // 更新 Call 按鈕狀態
     const toCall = actionPlayer ? state.current_bet - actionPlayer.in_pot : 0;

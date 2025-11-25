@@ -127,4 +127,54 @@ header h1 {
     border-top: 1px solid #444;
     padding-top: 15px;
 }
-/* ... (以下部分保持不變) ... */
+/* --- 玩家手牌區 --- */
+#player-hand-display {
+    position: fixed; /* 固定在視窗上 */
+    /* 將手牌區塊定位到視窗的底部中央，靠近 CO 玩家的視覺區域 */
+    bottom: 190px;
+    left: 62%;
+    transform: translateX(-50%); /* 水平居中 */
+    right: initial; /* 移除原有的 right 設置 */
+    
+    background-color: #383838;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    z-index: 1000; /* 確保在最上層 */
+}
+
+#player-hand-display h2 {
+    color: #ffcc66;
+    margin-top: 0;
+    font-size: 18px;
+    text-align: center;
+}
+
+.card-container {
+    display: flex;
+    gap: 10px; /* 卡牌間距 */
+    justify-content: center;
+}
+
+.card-slot {
+    width: 70px;
+    height: 80px;
+    background-color: white;
+    border: 1px solid #333;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: bold;
+    color: black;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* 卡牌花色樣式 */
+.card-slot .red {
+    color: red;
+}
+.card-slot .black {
+    color: black;
+}
