@@ -2,78 +2,62 @@
 
 const API_BASE = '/api';
 
+// 固定的 6 人牌桌位置順序
+const FIXED_POSITIONS = ['BB', 'SB', 'BTN', 'CO', 'MP', 'UTG'];
+
+// 預定義的撲克位置角度 (CSS 座標系：0度在右，順時針增加)
+// 角度根據圖像的對稱佈局進行精確定義 (60度間隔)
+const POSITION_ANGLES_CSS = {
+    'BB': 270,    // 頂部中心 (向上)
+    'SB': 210,    // 左上
+    'BTN': 150,   // 左下
+    'CO': 90,     // 底部中心 (向下)
+    'MP': 30,     // 右下
+    'UTG': 330    // 右上
+};
+
+
 // --- 輔助函數 ---
 function formatCard(card) {
-    // 將後端數據轉換為顯示格式 (e.g., A♠)
     const suits = { 's': '♠', 'h': '♥', 'd': '♦', 'c': '♣' };
     const suit = suits[card.suit] || '?';
-    
-    // 撲克花色顏色判斷
     const color = (card.suit === 'h' || card.suit === 'd') ? 'red' : 'black';
-    
     return `<span style="color:${color};">${card.rank}${suit}</span>`;
 }
 
-// 新增函數：根據玩家位置計算圓形佈局的座標
-function positionPlayerSlots(players) {
-    const container = document.getElementById('player-slots-container');
-    const containerSize = container.offsetWidth; // 圓桌直徑 (600px in CSS)
-    const center = containerSize / 2; // 圓心座標
-    const radius = center * 0.8; // 佈局半徑 (稍微靠內一點)
+// 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
+function positionPlayerSlots() {
+    // 圓心在 50% / 50%
+    const centerPercent = 50; 
+    // 調整半徑百分比，使其更靠近圓桌邊緣
+    const radiusPercent = 45; 
     
-    // 定義牌桌位置的順序和對應的弧度（假設有 6 個位置）
-    // 角度從最下方開始 (270度 = -90度 = -pi/2), 逆時針分佈
-    // UTG, MP, CO, BTN, SB, BB
-    // 這裡我們假設玩家陣列的順序即為位置順序，並平均分佈
-    const numPlayers = players.length;
-    
-    // 預定義的撲克位置角度（以 BB 在正下方為基準，逆時針排列）
-    const positionAngles = {
-        'BB': 0, // 0 點 (數學角度 270)
-        'SB': 60, // 1 點
-        'BTN': 120, // 2 點
-        'CO': 180, // 3 點
-        'MP': 240, // 4 點
-        'UTG': 300 // 5 點
-        // 如果有更多，請調整
-    };
-
-    players.forEach((p, index) => {
-        const slot = document.getElementById(`player-slot-${p.position}`);
+    FIXED_POSITIONS.forEach(position => {
+        const slot = document.getElementById(`player-slot-${position}`);
         if (!slot) return;
         
-        let angleDeg = 0;
+        let angleDeg = POSITION_ANGLES_CSS[position] || 0;
         
-        if (positionAngles.hasOwnProperty(p.position)) {
-            // 使用預定義的角度
-            // 將角度轉換為數學座標系（0度在右，逆時針）
-            // 這裡將撲克角度（0度在下，逆時針）轉換為 CSS top/left 所需的數學角度
-            // 0度（BB）對應數學的 270度 = -90度
-            angleDeg = 270 - positionAngles[p.position]; 
-        } else {
-            // 如果位置不在預定義列表中，則平均分佈
-            angleDeg = 360 - (index * (360 / numPlayers)) - 90;
-        }
-
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
 
-        // 計算座標 (x = r * cos(a), y = r * sin(a))
-        const x = center + radius * Math.cos(angleRad);
-        const y = center + radius * Math.sin(angleRad);
-        
-        // 玩家插槽寬度/高度
-        const slotWidth = slot.offsetWidth;
-        const slotHeight = slot.offsetHeight;
+        // 計算中心點座標 (使用百分比)
+        // COS 配合 LEFT (X 軸)
+        const xPercent = centerPercent + radiusPercent * Math.cos(angleRad);
+        // SIN 配合 TOP (Y 軸) - 順時針角度
+        const yPercent = centerPercent + radiusPercent * Math.sin(angleRad);
 
-        // 調整座標讓玩家插槽居中於計算點
-        slot.style.left = `${x - slotWidth / 2}px`;
-        slot.style.top = `${y - slotHeight / 2}px`;
+        // 設置 left/top (使用百分比)
+        slot.style.left = `${xPercent}%`;
+        slot.style.top = `${yPercent}%`;
+        
+        // 使用 translate 抵消自身的 50% 寬高，實現精確居中
+        slot.style.transform = `translate(-50%, -50%)`;
     });
 }
 
 
-// --- 渲染遊戲狀態 ---
+// --- 渲染遊戲狀態 (修改為固定 6 個位置的渲染邏輯) ---
 function renderGameState(state) {
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
     document.getElementById('community-cards').innerHTML = 
@@ -82,7 +66,7 @@ function renderGameState(state) {
     
     const actionPlayer = state.players.find(p => p.position === state.action_position);
     
-    // 渲染手牌 (只有當前行動的玩家會看到)
+    // 渲染手牌
     document.getElementById('current-hand').innerHTML = actionPlayer ? actionPlayer.hand.map(formatCard).join(' ') : '--';
     
     // 更新 Call 按鈕狀態
@@ -91,26 +75,54 @@ function renderGameState(state) {
     callBtn.textContent = toCall <= 0 ? 'Check' : `Call $${toCall}`;
     callBtn.dataset.amount = toCall;
 
-    // 渲染玩家狀態 - 必須先創建 DOM 元素才能定位
+    // 將後端返回的活躍玩家數據轉換為以 position 為鍵的 Map
+    const activePlayersMap = new Map(state.players.map(p => [p.position, p]));
+
     let playerHtml = '';
-    state.players.forEach(p => {
-        const isActiveClass = p.is_active ? 'active' : 'folded';
-        const isTurn = p.position === state.action_position ? 'is-turn' : '';
-        // 為每個插槽添加唯一的 ID，以便定位
-        playerHtml += `
-            <div class="player-slot ${isActiveClass} ${isTurn}" id="player-slot-${p.position}">
+    
+    // 遍歷所有固定位置，渲染插槽
+    FIXED_POSITIONS.forEach(position => {
+        const p = activePlayersMap.get(position); 
+        
+        let slotContent;
+        let slotClass;
+
+        if (p) {
+            // 活躍玩家
+            const isTurn = p.position === state.action_position;
+            
+            slotClass = p.is_active ? 'active' : 'folded';
+            if (isTurn) {
+                slotClass += ' is-turn';
+            }
+            
+            slotContent = `
                 <strong>${p.position}</strong> (${p.name})<br>
                 籌碼: $${p.chips} / In Pot: $${p.in_pot}
+            `;
+        } else {
+            // 閒置位置
+            slotClass = 'idle';
+            slotContent = `
+                <strong>${position}</strong><br>
+                <span style="font-size:12px;">(空閒)</span>
+            `;
+        }
+        
+        playerHtml += `
+            <div class="player-slot ${slotClass}" id="player-slot-${position}">
+                ${slotContent}
             </div>
         `;
     });
+    
     document.getElementById('player-slots-container').innerHTML = playerHtml;
     
-    // 調用新的定位函數
-    positionPlayerSlots(state.players);
+    // 調用定位函數
+    positionPlayerSlots();
 }
 
-// --- 渲染 GTO 反饋 ---
+// --- 渲染 GTO 反饋 (保持不變) ---
 function renderFeedback(feedback) {
     const resultDiv = document.getElementById('feedback-result');
     const matrixBody = document.getElementById('gto-matrix-body');
@@ -158,14 +170,11 @@ async function postAction(actionType, amount = 0) {
         const data = await response.json();
         
         if (!response.ok) {
-            // 處理 FastAPI 返回的 HTTPException 錯誤
             alert(`錯誤: ${data.detail}`);
             return;
         }
         
         renderFeedback(data);
-        
-        // 行動後更新遊戲狀態
         await fetchState();
 
     } catch (error) {
@@ -192,7 +201,7 @@ async function startNewHand() {
 }
 
 
-// --- 初始化和事件監聽 ---
+// --- 初始化和事件監聽 (保持不變) ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
     
@@ -222,21 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("請輸入有效的下注金額。");
             return;
         }
-        // 這裡簡化為 'Raise' (因為在目前的 Table 邏輯中，Bet 和 Raise 的處理相似)
         postAction('Raise', amount); 
     });
 
     // 首次載入時啟動新牌局
     startNewHand(); 
-    
-    // 確保視窗大小改變時重新定位（雖然牌桌是固定大小，但這是一個好的實踐）
-    window.addEventListener('resize', () => {
-        // 只有在 players-slots-container 有內容時才嘗試重新定位
-        const players = Array.from(document.getElementById('player-slots-container').children).map(el => ({ position: el.id.replace('player-slot-', '') }));
-        if (players.length > 0) {
-            // 由於沒有 state.players 數據，這裡需要一個簡易的方法來獲取位置
-            // 理想情況下應該從 state 重新獲取
-             // 暫時不做 window resize 處理，避免沒有狀態數據時出錯
-        }
-    });
 });

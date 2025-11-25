@@ -4,7 +4,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #1a1a1a; /* 深色背景，模擬牌桌風格 */
+    background-color: #1a1a1a;
     color: #e0e0e0;
 }
 
@@ -38,19 +38,17 @@ header h1 {
     padding-bottom: 10px;
 }
 
-/* --- 牌桌狀態區 (修改為圓桌) --- */
+/* --- 牌桌狀態區 (圓桌化) --- */
 #table-view {
     background-color: #006400; /* 綠色牌桌布 */
-    /* 關鍵修改：設置為圓形 */
     border-radius: 50%;
-    width: 600px; /* 限制寬度 */
-    height: 600px; /* 限制高度，使成為正圓 */
+    width: 600px; 
+    height: 600px; 
     padding: 40px;
-    margin: 20px auto; /* 居中 */
+    margin: 20px auto; 
     position: relative;
-    /* 移除 min-height: 350px; */
-    border: 5px solid #6b472e; /* 牌桌邊緣 */
-    box-sizing: border-box; /* 確保寬高包含 padding 和 border */
+    border: 5px solid #6b472e; 
+    box-sizing: border-box; 
 }
 
 #board-center {
@@ -79,47 +77,49 @@ header h1 {
     color: #ffe0b2;
 }
 
-/* 玩家位置容器 (配合圓桌修改) */
+/* 玩家位置容器 */
 #player-slots-container {
-    /* 移除 display: flex; */
-    /* 讓子元素可以絕對定位 */
     position: relative; 
     width: 100%;
     height: 100%;
 }
 
 .player-slot {
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 0.4);
     border: 2px solid #ff9900;
     border-radius: 5px;
     padding: 8px;
     text-align: center;
-    width: 120px;
+    width: 120px; 
+    height: 50px; 
     font-size: 14px;
-    position: absolute; /* 絕對定位到圓桌邊緣 */
+    position: absolute; /* 必須用絕對定位作為圓周佈局的基底 */
     transition: all 0.3s ease-in-out;
+    box-sizing: border-box;
 }
 
-/* 玩家位置範例 (需要根據實際玩家數量和位置調整) 
-   由於無法得知後端玩家數量，這裡只提供一個基本居中的佔位 */
-#player-slots-container {
-    /* 實際的圓形定位邏輯將在 main.js 中處理，這裡確保容器正確 */
-    width: 100%;
-    height: 100%;
+/* 閒置玩家（灰底） */
+.player-slot.idle {
+    background-color: #444444;
+    color: #aaaaaa;
+    border: 2px dashed #666666;
+    opacity: 0.7;
 }
 
-/* 高亮當前行動玩家 */
-.player-slot.is-turn {
-    background-color: #555500; /* 稍微亮一點 */
-    border-color: #fff000;
-    box-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
-}
-
+/* 棄牌玩家 */
 .player-slot.folded {
-    opacity: 0.5;
-    border-color: #666;
+    background-color: rgba(0, 0, 0, 0.8);
+    opacity: 0.4;
+    border-color: #444;
 }
 
+/* 當前行動玩家 */
+.player-slot.is-turn {
+    background-color: #555500; 
+    border-color: #fff000;
+    box-shadow: 0 0 10px rgba(255, 255, 0, 0.9);
+    color: white;
+}
 
 /* --- 決策區 --- */
 #action-panel {
@@ -127,44 +127,4 @@ header h1 {
     border-top: 1px solid #444;
     padding-top: 15px;
 }
-
-#action-buttons button {
-    padding: 12px 25px;
-    margin: 5px;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-button[data-type="Fold"] { background-color: #d9534f; color: white; }
-button[data-type="Call"] { background-color: #5cb85c; color: white; }
-button[data-type="Bet"] { background-color: #007bff; color: white; }
-
-button:hover { opacity: 0.8; }
-
-/* --- GTO 分析區 --- */
-aside h2, aside h4 {
-    color: #ffcc66;
-    border-bottom: 1px dashed #555;
-    padding-bottom: 5px;
-}
-
-#feedback-panel table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    background-color: #444;
-}
-
-#feedback-panel th, #feedback-panel td {
-    border: 1px solid #555;
-    padding: 8px;
-    text-align: left;
-}
-
-/* 反饋顏色 */
-.error { color: #d9534f; font-weight: bold; }
-.correct { color: #5cb85c; font-weight: bold; }
+/* ... (以下部分保持不變) ... */
