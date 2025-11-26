@@ -2,18 +2,17 @@
 
 const API_BASE = '/api';
 
-// 固定的 6 人牌桌位置順序
-const FIXED_POSITIONS = ['BB', 'SB', 'BTN', 'CO', 'MP', 'UTG'];
+// 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
+const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
 
-// 預定義的撲克位置角度 (CSS 座標系：0度在右，順時針增加)
-// 角度根據圖像的對稱佈局進行精確定義 (60度間隔)
-const POSITION_ANGLES_CSS = {
-    'BB': 270,    // 頂部中心 (向上)
-    'SB': 210,    // 左上
-    'BTN': 150,   // 左下
-    'CO': 90,     // 底部中心 (向下)
-    'MP': 30,     // 右下
-    'UTG': 330    // 右上
+// 預定義的座位角度 (CSS 座標系：0 度在右，順時針增加)
+const SEAT_ANGLES_CSS = {
+    1: 270, // 頂部
+    2: 330, // 右上
+    3: 30,  // 右下
+    4: 90,  // 底部
+    5: 150, // 左下
+    6: 210  // 左上
 };
 
 
@@ -32,11 +31,11 @@ function positionPlayerSlots() {
     // 調整半徑百分比，使其更靠近圓桌邊緣
     const radiusPercent = 45; 
     
-    FIXED_POSITIONS.forEach(position => {
-        const slot = document.getElementById(`player-slot-${position}`);
+    SEAT_ORDER.forEach(seat => {
+        const slot = document.getElementById(`player-slot-seat${seat}`);
         if (!slot) return;
-        
-        let angleDeg = POSITION_ANGLES_CSS[position] || 0;
+
+        let angleDeg = SEAT_ANGLES_CSS[seat] || 0;
         
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
@@ -60,9 +59,11 @@ function positionPlayerSlots() {
 // --- 渲染遊戲狀態 (修改為固定 6 個位置的渲染邏輯) ---
 function renderGameState(state) {
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
-    document.getElementById('community-cards').innerHTML = 
-        state.community_cards.map(formatCard).join(' ');
+    document.getElementById('community-cards').innerHTML =
+        state.community_cards.length ? state.community_cards.map(formatCard).join(' ') : '--';
+    document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
     document.getElementById('current-position').textContent = state.action_position;
+    document.getElementById('hand-status').textContent = state.hand_over ? '牌局已結束，請開始新局。' : '輪到您行動。';
     
     const actionPlayer = state.players.find(p => p.position === state.action_position);
     
@@ -88,14 +89,14 @@ function renderGameState(state) {
     callBtn.textContent = toCall <= 0 ? 'Check' : `Call $${toCall}`;
     callBtn.dataset.amount = toCall;
 
-    // 將後端返回的活躍玩家數據轉換為以 position 為鍵的 Map
-    const activePlayersMap = new Map(state.players.map(p => [p.position, p]));
+    // 將後端返回的活躍玩家數據轉換為以座位為鍵的 Map
+    const activePlayersMap = new Map(state.players.map(p => [p.seat_number, p]));
 
     let playerHtml = '';
     
     // 遍歷所有固定位置，渲染插槽
-    FIXED_POSITIONS.forEach(position => {
-        const p = activePlayersMap.get(position); 
+    SEAT_ORDER.forEach(seat => {
+        const p = activePlayersMap.get(seat);
         
         let slotContent;
         let slotClass;
@@ -103,27 +104,27 @@ function renderGameState(state) {
         if (p) {
             // 活躍玩家
             const isTurn = p.position === state.action_position;
-            
+
             slotClass = p.is_active ? 'active' : 'folded';
             if (isTurn) {
                 slotClass += ' is-turn';
             }
-            
+
             slotContent = `
-                <strong>${p.position}</strong> (${p.name})<br>
+                <strong>Seat ${p.seat_number}</strong> - ${p.position} (${p.name})<br>
                 籌碼: $${p.chips} / In Pot: $${p.in_pot}
             `;
         } else {
             // 閒置位置
             slotClass = 'idle';
             slotContent = `
-                <strong>${position}</strong><br>
+                <strong>Seat ${seat}</strong><br>
                 <span style="font-size:12px;">(空閒)</span>
             `;
         }
-        
+
         playerHtml += `
-            <div class="player-slot ${slotClass}" id="player-slot-${position}">
+            <div class="player-slot ${slotClass}" id="player-slot-seat${seat}">
                 ${slotContent}
             </div>
         `;
@@ -131,8 +132,12 @@ function renderGameState(state) {
     
     document.getElementById('player-slots-container').innerHTML = playerHtml;
     
+    // 牌局結束時揭露對手手牌
+    renderOpponentHands(state);
+
     // 調用定位函數
     positionPlayerSlots();
+    toggleActionAvailability(state.hand_over);
 }
 
 // --- 渲染 GTO 反饋 (保持不變) ---
@@ -168,6 +173,35 @@ async function fetchState() {
     } catch (error) {
         console.error("Error fetching state:", error);
     }
+}
+
+function renderOpponentHands(state) {
+    const container = document.getElementById('opponent-hands');
+    if (!container) return;
+
+    if (!state.hand_over) {
+        container.innerHTML = '<p>牌局尚未結束，對手手牌隱藏。</p>';
+        return;
+    }
+
+    if (!state.opponent_hands.length) {
+        container.innerHTML = '<p>沒有可顯示的對手手牌。</p>';
+        return;
+    }
+
+    const listHtml = state.opponent_hands.map(opp => {
+        const cards = opp.hand.map(formatCard).join(' ');
+        return `<li><strong>Seat ${opp.seat_number}</strong> - ${opp.position} (${opp.name}): ${cards}</li>`;
+    }).join('');
+
+    container.innerHTML = `<ul>${listHtml}</ul>`;
+}
+
+function toggleActionAvailability(handOver) {
+    const actionable = document.querySelectorAll('#action-buttons button, #submit-bet-btn');
+    actionable.forEach(btn => {
+        btn.disabled = handOver;
+    });
 }
 
 async function postAction(actionType, amount = 0) {

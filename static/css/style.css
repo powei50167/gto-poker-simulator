@@ -60,6 +60,10 @@ header h1 {
     color: white;
 }
 
+#board-center div {
+    margin-bottom: 6px;
+}
+
 #community-cards {
     font-size: 36px;
     font-weight: bold;
@@ -130,12 +134,12 @@ header h1 {
 /* --- 玩家手牌區 --- */
 #player-hand-display {
     position: fixed; /* 固定在視窗上 */
-    /* 將手牌區塊定位到視窗的底部中央，靠近 CO 玩家的視覺區域 */
-    bottom: 190px;
-    left: 62%;
+    /* 將手牌區塊定位到視窗的底部中央，靠近 4 號位 (Hero) 的視覺區域 */
+    bottom: 140px;
+    left: 50%;
     transform: translateX(-50%); /* 水平居中 */
     right: initial; /* 移除原有的 right 設置 */
-    
+
     background-color: #383838;
     padding: 15px;
     border-radius: 8px;
@@ -177,4 +181,22 @@ header h1 {
 }
 .card-slot .black {
     color: black;
+}
+
+#opponent-panel {
+    margin-top: 20px;
+    padding: 12px;
+    background-color: #2f2f2f;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+#opponent-panel h3 {
+    margin-top: 0;
+    color: #ffcc66;
+}
+
+#opponent-hands ul {
+    padding-left: 18px;
+    margin: 8px 0;
 }

@@ -10,10 +10,18 @@ class PlayerState(BaseModel):
     """單個玩家的當前狀態"""
     name: str
     position: str
+    seat_number: int
     chips: int
     in_pot: int
     is_active: bool
     hand: List[CardModel] = [] # 只有當前行動的玩家會看到自己的手牌
+
+class OpponentHand(BaseModel):
+    """牌局結束時揭露的對手手牌資料"""
+    name: str
+    position: str
+    seat_number: int
+    hand: List[CardModel]
 
 class GameState(BaseModel):
     """牌局的完整狀態 (發送給前端)"""
@@ -22,6 +30,9 @@ class GameState(BaseModel):
     action_position: str # 輪到誰行動 (e.g., 'BTN')
     players: List[PlayerState]
     current_bet: int # 當前必須跟注的金額 (Call Amount)
+    current_stage: str
+    hand_over: bool
+    opponent_hands: List[OpponentHand] = []
 
 class UserAction(BaseModel):
     """用戶從前端發送的行動請求"""

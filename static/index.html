@@ -16,10 +16,11 @@
 
             <div id="table-view">
                 <div id="board-center">
+                    <div>階段: <span id="stage-label">PREFLOP</span></div>
                     公共牌: <span id="community-cards">--</span>
                     <div id="pot-size">POT: $0</div>
                 </div>
-                
+
                 <div id="player-slots-container">
                 </div>
             </div>
@@ -31,7 +32,7 @@
                 </div>
             </div>
             <section id="action-panel">
-                <p>輪到您行動 (<span id="current-position">--</span>):</p>
+                <p><span id="hand-status">輪到您行動。</span> (<span id="current-position">--</span>)</p>
                 <div id="action-buttons">
                     <button class="action-btn" data-type="Fold">棄牌 (Fold)</button>
                     <button class="action-btn" data-type="Call" id="call-btn">跟注 ($0)</button>
@@ -43,7 +44,12 @@
                     <button id="submit-bet-btn">確認下注</button>
                 </div>
             </section>
-            
+
+            <section id="opponent-panel">
+                <h3>對手手牌</h3>
+                <div id="opponent-hands"><p>牌局尚未結束，對手手牌隱藏。</p></div>
+            </section>
+
             </main>
         
         <aside id="feedback-panel">
