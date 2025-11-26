@@ -101,15 +101,33 @@ function renderGameState(state) {
 
     // 更新 Call 按鈕狀態
     const heroCommit = heroPlayer ? heroPlayer.current_round_bet || 0 : 0;
-    const toCall = Math.max(state.current_bet - heroCommit, 0);
+    const heroStack = heroPlayer ? heroPlayer.chips || 0 : 0;
+    const maxTotal = heroCommit + heroStack;
+    const toCallRaw = Math.max(state.current_bet - heroCommit, 0);
+    const toCall = Math.min(toCallRaw, maxTotal);
     const callBtn = document.getElementById('call-btn');
-    callBtn.textContent = `跟注 ($${Math.max(toCall, 0)})`;
+    const callLabelPrefix = toCallRaw > heroStack ? '跟注 / 全下' : '跟注';
+    callBtn.textContent = `${callLabelPrefix} ($${Math.max(toCall, 0)})`;
     callBtn.dataset.amount = toCall;
     callBtn.disabled = toCall <= 0 || disableActions;
 
     const checkBtn = document.getElementById('check-btn');
     if (checkBtn) {
         checkBtn.disabled = toCall > 0 || disableActions;
+    }
+
+    const allInBtn = document.getElementById('allin-btn');
+    if (allInBtn) {
+        allInBtn.textContent = `全下 (All-in $${heroStack})`;
+        allInBtn.disabled = disableActions || heroStack <= 0;
+    }
+
+    const betInput = document.getElementById('bet-amount-input');
+    if (betInput) {
+        betInput.max = maxTotal;
+        const currentValue = parseInt(betInput.value) || 0;
+        const clampedValue = Math.min(Math.max(currentValue, 1), maxTotal);
+        betInput.value = clampedValue;
     }
 
     // 將後端返回的活躍玩家數據轉換為以座位為鍵的 Map
@@ -360,12 +378,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 處理 Bet/Raise 提交
     document.getElementById('submit-bet-btn').addEventListener('click', () => {
-        const amount = parseInt(document.getElementById('bet-amount-input').value);
-        if (isNaN(amount) || amount <= 0) {
+        const betInput = document.getElementById('bet-amount-input');
+        const amount = parseInt(betInput.value);
+        const max = parseInt(betInput.max) || amount;
+        const sanitizedAmount = Math.min(Math.max(amount, 1), max);
+
+        if (isNaN(sanitizedAmount) || sanitizedAmount <= 0) {
             alert("請輸入有效的下注金額。");
             return;
         }
-        postAction('Raise', amount); 
+        betInput.value = sanitizedAmount;
+        postAction('Raise', sanitizedAmount);
+    });
+
+    const allInBtn = document.getElementById('allin-btn');
+    allInBtn.addEventListener('click', () => {
+        postAction('AllIn');
     });
 
     // 首次載入時啟動新牌局

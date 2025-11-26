@@ -206,6 +206,7 @@ class Table:
         player = self.get_current_player()
         current_commit = self.current_round_bets.get(player.name, 0)
         to_call = max(self.current_bet - current_commit, 0)
+        available_total = player.chips + current_commit
 
         if action.action_type == 'Fold':
             player.fold()
@@ -224,7 +225,7 @@ class Table:
         elif action.action_type in ['Bet', 'Raise']:
             if action.action_type == 'Bet' and self.current_bet > 0:
                 raise ValueError("當前已有下注，請選擇跟注或加注。")
-            amount = action.amount
+            amount = min(action.amount, available_total)
             if amount <= self.current_bet:
                 raise ValueError("下注/加注金額必須大於當前下注。")
             to_put_in = max(amount - current_commit, 0)
@@ -233,9 +234,26 @@ class Table:
             self.current_round_bets[player.name] = current_commit + contributed
             self.current_bet = self.current_round_bets[player.name]
             self._reset_queue_after_raise(player)
-            self._log_action(player, action.action_type, action.amount)
-            print(f"處理了 {player.position} 的行動: {action.action_type} {action.amount}")
+            self._log_action(player, action.action_type, self.current_bet)
+            print(f"處理了 {player.position} 的行動: {action.action_type} {self.current_bet}")
             return
+        elif action.action_type == 'AllIn':
+            if player.chips <= 0:
+                raise ValueError("沒有可用籌碼可全下。")
+
+            contributed = player.bet(player.chips)
+            self.pot += contributed
+            new_commit = current_commit + contributed
+            self.current_round_bets[player.name] = new_commit
+
+            if new_commit > self.current_bet:
+                self.current_bet = new_commit
+                self._reset_queue_after_raise(player)
+                self._log_action(player, 'AllIn', new_commit)
+                print(f"處理了 {player.position} 的行動: AllIn {new_commit}")
+                return
+            else:
+                self._log_action(player, 'AllIn', new_commit)
         else:
             raise ValueError("無效的行動類型。")
 

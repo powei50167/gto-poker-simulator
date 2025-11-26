@@ -21,14 +21,15 @@
                     <div id="pot-size">POT: $0</div>
                 </div>
 
-                <div id="player-slots-container">
+                <div id="player-hand-display">
+                    <h2>您的手牌</h2>
+                    <div id="current-hand" class="card-container">
+                        <div class="card-slot">?</div>
+                        <div class="card-slot">?</div>
+                    </div>
                 </div>
-            </div>
-            <div id="player-hand-display">
-                <h2>您的手牌</h2>
-                <div id="current-hand" class="card-container">
-                    <div class="card-slot">?</div>
-                    <div class="card-slot">?</div>
+
+                <div id="player-slots-container">
                 </div>
             </div>
             <section id="action-panel">
@@ -37,6 +38,7 @@
                     <button class="action-btn" data-type="Check" id="check-btn">過牌 (Check)</button>
                     <button class="action-btn" data-type="Fold">棄牌 (Fold)</button>
                     <button class="action-btn" data-type="Call" id="call-btn">跟注 ($0)</button>
+                    <button class="action-btn" data-type="AllIn" id="allin-btn">全下 (All-in)</button>
                 </div>
                 
                 <div id="bet-control" style="margin-top: 15px;">
