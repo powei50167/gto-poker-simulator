@@ -64,6 +64,7 @@ function renderGameState(state) {
     document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
     document.getElementById('current-position').textContent = state.action_position;
     document.getElementById('hand-status').textContent = state.hand_over ? '牌局已結束，請開始新局。' : '輪到您行動。';
+    renderOpponentHands(state);
     
     const actionPlayer = state.players.find(p => p.position === state.action_position);
     
@@ -82,18 +83,24 @@ function renderGameState(state) {
             <div class="card-slot">?</div>
         `;
     }
-    
+
     // 更新 Call 按鈕狀態
-    const toCall = actionPlayer ? state.current_bet - actionPlayer.in_pot : 0;
+    const toCall = Math.max(actionPlayer ? state.current_bet - actionPlayer.in_pot : 0, 0);
     const callBtn = document.getElementById('call-btn');
-    callBtn.textContent = toCall <= 0 ? 'Check' : `Call $${toCall}`;
+    callBtn.textContent = `跟注 ($${Math.max(toCall, 0)})`;
     callBtn.dataset.amount = toCall;
+    callBtn.disabled = toCall <= 0 || state.hand_over;
+
+    const checkBtn = document.getElementById('check-btn');
+    if (checkBtn) {
+        checkBtn.disabled = toCall > 0 || state.hand_over;
+    }
 
     // 將後端返回的活躍玩家數據轉換為以座位為鍵的 Map
     const activePlayersMap = new Map(state.players.map(p => [p.seat_number, p]));
 
     let playerHtml = '';
-    
+
     // 遍歷所有固定位置，渲染插槽
     SEAT_ORDER.forEach(seat => {
         const p = activePlayersMap.get(seat);
@@ -137,6 +144,7 @@ function renderGameState(state) {
 
     // 調用定位函數
     positionPlayerSlots();
+    renderActionLog(state.action_log || []);
     toggleActionAvailability(state.hand_over);
 }
 
@@ -197,6 +205,25 @@ function renderOpponentHands(state) {
     container.innerHTML = `<ul>${listHtml}</ul>`;
 }
 
+function renderActionLog(logEntries) {
+    const container = document.getElementById('action-log');
+    if (!container) return;
+
+    const filtered = logEntries.filter(entry => entry.name.toLowerCase() !== 'hero');
+
+    if (!filtered.length) {
+        container.innerHTML = '<p>尚無其他玩家行動紀錄。</p>';
+        return;
+    }
+
+    const listHtml = filtered.map(entry => {
+        const amountPart = entry.amount > 0 ? ` $${entry.amount}` : '';
+        return `<div class="action-entry"><span class="actor">Seat ${entry.seat_number} ${entry.position} (${entry.name})</span>：<span class="action-type">${entry.action}</span>${amountPart}</div>`;
+    }).join('');
+
+    container.innerHTML = listHtml;
+}
+
 function toggleActionAvailability(handOver) {
     const actionable = document.querySelectorAll('#action-buttons button, #submit-bet-btn');
     actionable.forEach(btn => {
@@ -251,23 +278,25 @@ async function startNewHand() {
 // --- 初始化和事件監聽 (保持不變) ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
-    
+
     // 處理 Fold 和 Call/Check
     document.getElementById('action-buttons').addEventListener('click', (event) => {
         const btn = event.target;
         const actionType = btn.dataset.type;
-        
+
         if (!actionType) return;
-        
+
         if (actionType === 'Fold') {
             postAction('Fold');
+        } else if (actionType === 'Check') {
+            postAction('Check');
         } else if (actionType === 'Call') {
             const amount = parseInt(btn.dataset.amount);
-            if (amount === 0) {
-                postAction('Check');
-            } else {
-                postAction('Call', amount);
+            if (isNaN(amount) || amount <= 0) {
+                alert('目前無需跟注。');
+                return;
             }
+            postAction('Call', amount);
         }
     });
 

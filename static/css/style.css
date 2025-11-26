@@ -209,3 +209,44 @@ header h1 {
     padding-left: 18px;
     margin: 8px 0;
 }
+
+#action-log-panel {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+}
+
+#action-log-panel h3 {
+    margin: 0 0 8px 0;
+    color: #9ad1ff;
+}
+
+.scrollable-box {
+    max-height: 180px;
+    overflow-y: auto;
+    background: #1f1f1f;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.action-entry {
+    padding: 6px 4px;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+}
+
+.action-entry:last-child {
+    border-bottom: none;
+}
+
+.action-entry .actor {
+    font-weight: bold;
+    color: #ffcc66;
+}
+
+.action-entry .action-type {
+    color: #7fe07f;
+}
