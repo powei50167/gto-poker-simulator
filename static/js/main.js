@@ -161,6 +161,7 @@ function renderGameState(state) {
     // 調用定位函數
     positionPlayerSlots();
     renderActionLog(state.action_log || []);
+    renderHandResult(state.hand_result, state.hand_over);
 }
 
 // --- 渲染 GTO 反饋 (保持不變) ---
@@ -256,6 +257,27 @@ function renderActionLog(logEntries) {
     }).join('');
 
     container.innerHTML = groupedHtml;
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderHandResult(result, handOver) {
+    const container = document.getElementById('hand-result');
+    if (!container) return;
+
+    if (!handOver) {
+        container.textContent = '本局尚未結束。';
+        return;
+    }
+
+    if (!result) {
+        container.textContent = '牌局結束，未能計算結果。';
+        return;
+    }
+
+    container.innerHTML = `
+        <p>${result.description}</p>
+        <p><strong>Seat ${result.seat_number}</strong> (${result.position}) – 獲得 $${result.amount_won}</p>
+    `;
 }
 
 function toggleActionAvailability(disabled) {
