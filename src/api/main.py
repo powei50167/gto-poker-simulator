@@ -14,6 +14,33 @@ players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000,
 game_table = Table(players_init, big_blind=100)
 gto_logic = StrategyLogic()
 
+
+def _auto_play_until_hero():
+    """自動處理非 Hero 玩家行動，直到輪到 Hero 或牌局結束。"""
+    actions = []
+
+    while not game_table.hand_over:
+        acting_player = game_table.get_current_player()
+        if acting_player.name.lower() == 'hero':
+            break
+
+        current_state = GameState(**game_table.get_state_for_frontend())
+        ai_decision = gto_logic.decide_opponent_action(current_state)
+
+        try:
+            game_table.process_action(ai_decision)
+            actions.append({
+                'actor': acting_player.name,
+                'action_type': ai_decision.action_type,
+                'amount': ai_decision.amount,
+            })
+        except ValueError as e:
+            # AI 回傳的行動無效時終止自動行動，避免陷入無限循環
+            print(f"AI action invalid: {e}")
+            break
+
+    return actions
+
 # 定義靜態文件路徑
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -27,6 +54,7 @@ async def serve_index():
 async def start_new_hand():
     """啟動新的牌局"""
     game_table.start_hand()
+    _auto_play_until_hero()
     # 返回新的狀態
     return game_table.get_state_for_frontend()
 
@@ -47,12 +75,15 @@ async def submit_action(action: UserAction):
         game_table.process_action(action)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
     # 2. GTO 評估
     feedback = gto_logic.evaluate_user_action(
         game_state=current_state,
         user_action=action
     )
+
+    # 3. 自動處理非 Hero 的後續行動
+    _auto_play_until_hero()
 
     return feedback
 
@@ -63,20 +94,13 @@ async def decide_ai_action():
     if game_table.hand_over:
         raise HTTPException(status_code=400, detail="牌局已結束，請先開始新牌局。")
 
-    acting_player = game_table.get_current_player()
-    if acting_player.name.lower() == 'hero':
-        raise HTTPException(status_code=400, detail="目前輪到 Hero 行動，請由玩家操作。")
+    actions = _auto_play_until_hero()
+    if not actions:
+        raise HTTPException(status_code=400, detail="目前輪到 Hero 行動，無需 AI 決策。")
 
-    current_state = GameState(**game_table.get_state_for_frontend())
-    ai_decision = gto_logic.decide_opponent_action(current_state)
-
-    try:
-        game_table.process_action(ai_decision)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
+    last_action = actions[-1]
     return AIActionResponse(
-        actor=acting_player.name,
-        action_type=ai_decision.action_type,
-        amount=ai_decision.amount,
+        actor=last_action['actor'],
+        action_type=last_action['action_type'],
+        amount=last_action['amount'],
     )
