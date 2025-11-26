@@ -210,6 +210,35 @@ header h1 {
     margin: 8px 0;
 }
 
+#feedback-panel {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #2f2f2f;
+    border: 1px solid #444;
+    border-radius: 8px;
+}
+
+#feedback-panel h2 {
+    margin-top: 0;
+    color: #9ad1ff;
+}
+
+#gto-matrix-display h4 {
+    margin-bottom: 6px;
+}
+
+#gto-matrix-display table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#gto-matrix-display th,
+#gto-matrix-display td {
+    border: 1px solid #555;
+    padding: 6px;
+    text-align: center;
+}
+
 #action-log-panel {
     margin-top: 16px;
     padding: 12px;

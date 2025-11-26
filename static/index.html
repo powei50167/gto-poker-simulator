@@ -51,27 +51,27 @@
                 <div id="opponent-hands"><p>牌局尚未結束，對手手牌隱藏。</p></div>
             </section>
 
-            <section id="action-log-panel">
-                <h3>其他玩家行動</h3>
-                <div id="action-log" class="scrollable-box">
-                    <p>等待行動資料...</p>
+            <section id="feedback-panel">
+                <h2>GTO 策略分析</h2>
+                <div id="feedback-result"></div>
+                <div id="gto-matrix-display">
+                    <h4>GTO 建議行動</h4>
+                    <table>
+                        <thead><tr><th>行動</th><th>頻率</th><th>EV (BB)</th></tr></thead>
+                        <tbody id="gto-matrix-body">
+                        </tbody>
+                    </table>
                 </div>
+                <div id="error-explanation"></div>
             </section>
 
             </main>
-        
-        <aside id="feedback-panel">
-            <h2>GTO 策略分析</h2>
-            <div id="feedback-result"></div>
-            <div id="gto-matrix-display">
-                <h4>GTO 建議行動</h4>
-                <table>
-                    <thead><tr><th>行動</th><th>頻率</th><th>EV (BB)</th></tr></thead>
-                    <tbody id="gto-matrix-body">
-                    </tbody>
-                </table>
+
+        <aside id="action-log-panel">
+            <h3>其他玩家行動</h3>
+            <div id="action-log" class="scrollable-box">
+                <p>等待行動資料...</p>
             </div>
-            <div id="error-explanation"></div>
         </aside>
     </div>
 
