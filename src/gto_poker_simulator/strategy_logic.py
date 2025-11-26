@@ -116,6 +116,8 @@ class StrategyLogic:
 
         players = game_state.players
         acting_player = next((p for p in players if p.position == game_state.action_position), None)
+        acting_commit = acting_player.current_round_bet if acting_player else 0
+        acting_stack = acting_player.chips if acting_player else 0
         to_call = 0
         if acting_player:
             to_call = max(game_state.current_bet - acting_player.current_round_bet, 0)
@@ -146,6 +148,13 @@ class StrategyLogic:
                 data = self._parse_json_reply(reply)
                 action_type = data.get("action_type", "Call")
                 amount = int(data.get("amount", to_call))
+                action_type, amount = self._sanitize_ai_action(
+                    action_type=action_type,
+                    amount=amount,
+                    to_call=to_call,
+                    current_bet=game_state.current_bet,
+                    max_commit=acting_commit + acting_stack,
+                )
                 return UserAction(action_type=action_type, amount=amount)
             except Exception as e:
                 print("GPT error while deciding opponent action:", e)
@@ -156,6 +165,53 @@ class StrategyLogic:
         if to_call > 0:
             return UserAction(action_type="Call", amount=to_call)
         return UserAction(action_type="Check", amount=0)
+
+    def _sanitize_ai_action(
+        self,
+        action_type: str,
+        amount: int,
+        to_call: int,
+        current_bet: int,
+        max_commit: int,
+    ) -> tuple[str, int]:
+        """確保 AI 行動符合桌面規則，避免觸發非法下注錯誤。"""
+
+        lowered = action_type.lower()
+        normalization_map = {
+            "call": "Call",
+            "check": "Check",
+            "bet": "Bet",
+            "raise": "Raise",
+            "fold": "Fold",
+            "allin": "AllIn",
+            "all-in": "AllIn",
+        }
+        normalized_type = normalization_map.get(lowered, "Call")
+        safe_amount = max(amount, 0)
+
+        if to_call > 0:
+            if normalized_type == "Check":
+                normalized_type = "Call"
+                safe_amount = to_call
+            elif normalized_type == "Bet":
+                normalized_type = "Raise"
+            elif normalized_type == "Call":
+                safe_amount = to_call
+
+            if normalized_type == "Raise":
+                min_total = max(current_bet + 1, to_call)
+                safe_amount = max(safe_amount, min_total)
+        else:
+            if normalized_type == "Call":
+                normalized_type = "Check"
+                safe_amount = 0
+            elif normalized_type == "Raise":
+                normalized_type = "Bet"
+            if normalized_type == "Bet":
+                safe_amount = max(safe_amount, current_bet + 1)
+
+        safe_amount = min(safe_amount, max_commit)
+        return normalized_type, safe_amount
 
     def _parse_json_reply(self, reply: str) -> dict:
         """
