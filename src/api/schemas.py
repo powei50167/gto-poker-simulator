@@ -35,6 +35,15 @@ class OpponentHand(BaseModel):
     seat_number: int
     hand: List[CardModel]
 
+
+class HandResult(BaseModel):
+    """簡易的牌局結果資訊"""
+    winner_name: str
+    seat_number: int
+    position: str
+    amount_won: int
+    description: str
+
 class GameState(BaseModel):
     """牌局的完整狀態 (發送給前端)"""
     pot_size: int
@@ -46,6 +55,7 @@ class GameState(BaseModel):
     hand_over: bool
     opponent_hands: List[OpponentHand] = []
     action_log: List[ActionLogEntry] = []
+    hand_result: HandResult | None = None
 
 class UserAction(BaseModel):
     """用戶從前端發送的行動請求"""

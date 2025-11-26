@@ -67,6 +67,7 @@ class Table:
         self.current_round_bets: Dict[str, int] = {}
         self.action_queue: List[int] = []
         self.action_log: List[Dict[str, Any]] = []
+        self.hand_result: Dict[str, Any] | None = None
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -162,6 +163,7 @@ class Table:
         self.current_stage = 'preflop'
         self.opponent_hands = []
         self.action_log = []
+        self.hand_result = None
 
         self._reset_players_for_new_hand()
         self._assign_seats()
@@ -255,6 +257,7 @@ class Table:
             self.current_stage = 'showdown'
             self.hand_over = True
             self._reveal_opponents()
+            self._finalize_showdown()
 
     def _deal_community_cards(self, count: int):
         self.community_cards.extend([self.deck.pop() for _ in range(count)])
@@ -277,6 +280,9 @@ class Table:
         if not self.action_queue:
             self.hand_over = True
             self.current_stage = 'showdown'
+            active_players = [p for p in self.players if p.is_active]
+            winner = active_players[0] if active_players else None
+            self._set_hand_result(winner)
             self._reveal_opponents()
             return
         self._advance_to_next_player()
@@ -317,6 +323,8 @@ class Table:
         if len(active_players) <= 1:
             self.hand_over = True
             self.current_stage = 'showdown'
+            winner = active_players[0] if active_players else None
+            self._set_hand_result(winner)
             self._reveal_opponents()
             return
         self._advance_stage()
@@ -353,6 +361,29 @@ class Table:
                 'hand': [c.to_model() for c in p.hand]
             })
 
+    def _set_hand_result(self, winner: Player | None):
+        """記錄牌局結果並將底池分配給贏家。"""
+        if not winner:
+            self.hand_result = None
+            return
+
+        amount_won = self.pot
+        winner.chips += amount_won
+        self.pot = 0
+        self.hand_result = {
+            'winner_name': winner.name,
+            'seat_number': winner.seat_number,
+            'position': winner.position,
+            'amount_won': amount_won,
+            'description': f"{winner.position} ({winner.name}) 贏得了 ${amount_won} 底池",
+        }
+
+    def _finalize_showdown(self):
+        """河牌後隨機決定贏家並分配底池（簡化版）。"""
+        active_players = [p for p in self.players if p.is_active]
+        winner = random.choice(active_players) if active_players else None
+        self._set_hand_result(winner)
+
     def get_state_for_frontend(self) -> Dict[str, Any]:
         """將 Table 狀態轉換為 Pydantic 模型需要的字典"""
 
@@ -372,5 +403,6 @@ class Table:
             'current_stage': self.current_stage,
             'hand_over': self.hand_over,
             'opponent_hands': self.opponent_hands,
-            'action_log': self.action_log
+            'action_log': self.action_log,
+            'hand_result': self.hand_result
         }

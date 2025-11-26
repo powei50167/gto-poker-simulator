@@ -144,10 +144,12 @@ header h1 {
 #player-hand-display {
     position: fixed; /* 固定在視窗上 */
     /* 將手牌區塊定位到視窗的底部中央，靠近 4 號位 (Hero) 的視覺區域 */
-    bottom: 330px;
-    left: 60%;
+    bottom: 20px;
+    left: 50%;
     transform: translateX(-50%); /* 水平居中 */
     right: initial; /* 移除原有的 right 設置 */
+
+    min-width: 280px;
 
     background-color: #383838;
     padding: 15px;
@@ -305,12 +307,30 @@ header h1 {
 }
 
 .scrollable-box {
-    max-height: 180px;
+    max-height: 260px;
     overflow-y: auto;
     background: #1f1f1f;
     border: 1px solid #555;
     border-radius: 6px;
     padding: 10px;
+}
+
+#result-panel {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #2f2f2f;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+#result-panel h3 {
+    margin: 0 0 8px;
+    color: #9ad1ff;
+}
+
+#hand-result {
+    font-size: 16px;
+    line-height: 1.5;
 }
 
 .action-entry {
