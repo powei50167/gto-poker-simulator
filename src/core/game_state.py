@@ -33,7 +33,8 @@ class Player:
         return amount
 
     def to_model(self, is_current_player: bool = False, current_round_bet: int = 0):
-        hand_model = [c.to_model() for c in self.hand] if is_current_player else []
+        hero_can_see_hand = self.name.lower() == 'hero'
+        hand_model = [c.to_model() for c in self.hand] if (is_current_player or hero_can_see_hand) else []
         return {
             'name': self.name,
             'position': self.position,
@@ -184,6 +185,7 @@ class Table:
             'position': player.position,
             'seat_number': player.seat_number,
             'action': action,
+            'stage': self.current_stage,
             'amount': amount,
         })
         

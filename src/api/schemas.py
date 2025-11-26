@@ -24,6 +24,7 @@ class ActionLogEntry(BaseModel):
     position: str
     seat_number: int
     action: str
+    stage: str
     amount: int = 0
 
 
