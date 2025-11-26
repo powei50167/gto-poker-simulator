@@ -118,7 +118,7 @@ class StrategyLogic:
         acting_player = next((p for p in players if p.position == game_state.action_position), None)
         to_call = 0
         if acting_player:
-            to_call = max(game_state.current_bet - acting_player.in_pot, 0)
+            to_call = max(game_state.current_bet - acting_player.current_round_bet, 0)
 
         prompt = f"""
 你現在扮演德州撲克玩家，根據以下桌面資訊給出你的行動並回傳 JSON：

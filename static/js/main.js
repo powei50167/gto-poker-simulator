@@ -64,14 +64,19 @@ function renderGameState(state) {
     document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
     document.getElementById('current-position').textContent = state.action_position;
     document.getElementById('hand-status').textContent = state.hand_over ? '牌局已結束，請開始新局。' : '輪到您行動。';
-    renderOpponentHands(state);
-    
+
+    const heroPlayer = state.players.find(p => p.name.toLowerCase() === 'hero');
     const actionPlayer = state.players.find(p => p.position === state.action_position);
+    const isHeroTurn = !!(heroPlayer && heroPlayer.position === state.action_position && !state.hand_over);
+    const disableActions = state.hand_over || !isHeroTurn;
+    toggleActionAvailability(disableActions);
     
     // 渲染手牌
     const handDisplay = document.getElementById('current-hand');
-    if (actionPlayer) {
-        const cardHtml = actionPlayer.hand.map(card => {
+    const handOwner = heroPlayer || actionPlayer;
+
+    if (handOwner) {
+        const cardHtml = handOwner.hand.map(card => {
             const formatted = formatCard(card);
             return `<div class="card-slot">${formatted}</div>`;
         }).join('');
@@ -85,15 +90,16 @@ function renderGameState(state) {
     }
 
     // 更新 Call 按鈕狀態
-    const toCall = Math.max(actionPlayer ? state.current_bet - actionPlayer.in_pot : 0, 0);
+    const heroCommit = heroPlayer ? heroPlayer.current_round_bet || 0 : 0;
+    const toCall = Math.max(state.current_bet - heroCommit, 0);
     const callBtn = document.getElementById('call-btn');
     callBtn.textContent = `跟注 ($${Math.max(toCall, 0)})`;
     callBtn.dataset.amount = toCall;
-    callBtn.disabled = toCall <= 0 || state.hand_over;
+    callBtn.disabled = toCall <= 0 || disableActions;
 
     const checkBtn = document.getElementById('check-btn');
     if (checkBtn) {
-        checkBtn.disabled = toCall > 0 || state.hand_over;
+        checkBtn.disabled = toCall > 0 || disableActions;
     }
 
     // 將後端返回的活躍玩家數據轉換為以座位為鍵的 Map
@@ -145,7 +151,6 @@ function renderGameState(state) {
     // 調用定位函數
     positionPlayerSlots();
     renderActionLog(state.action_log || []);
-    toggleActionAvailability(state.hand_over);
 }
 
 // --- 渲染 GTO 反饋 (保持不變) ---
@@ -224,15 +229,16 @@ function renderActionLog(logEntries) {
     container.innerHTML = listHtml;
 }
 
-function toggleActionAvailability(handOver) {
-    const actionable = document.querySelectorAll('#action-buttons button, #submit-bet-btn');
+function toggleActionAvailability(disabled) {
+    const actionable = document.querySelectorAll('#action-buttons button, #submit-bet-btn, #bet-amount-input');
     actionable.forEach(btn => {
-        btn.disabled = handOver;
+        btn.disabled = disabled;
     });
 }
 
 async function postAction(actionType, amount = 0) {
     const userAction = { action_type: actionType, amount: amount };
+    toggleActionAvailability(true);
 
     try {
         const response = await fetch(`${API_BASE}/action`, {
@@ -242,18 +248,19 @@ async function postAction(actionType, amount = 0) {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             alert(`錯誤: ${data.detail}`);
             return;
         }
-        
+
         renderFeedback(data);
-        await fetchState();
 
     } catch (error) {
         console.error("Error submitting action:", error);
         alert("提交行動時發生網路錯誤。");
+    } finally {
+        await fetchState();
     }
 }
 

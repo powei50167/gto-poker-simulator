@@ -32,7 +32,7 @@ class Player:
         self.in_pot += amount
         return amount
 
-    def to_model(self, is_current_player: bool = False):
+    def to_model(self, is_current_player: bool = False, current_round_bet: int = 0):
         hand_model = [c.to_model() for c in self.hand] if is_current_player else []
         return {
             'name': self.name,
@@ -40,6 +40,7 @@ class Player:
             'seat_number': self.seat_number,
             'chips': self.chips,
             'in_pot': self.in_pot,
+            'current_round_bet': current_round_bet,
             'is_active': self.is_active,
             'hand': hand_model
         }
@@ -51,6 +52,7 @@ class Table:
 
     def __init__(self, players_data: Dict[str, int], big_blind: int = 100):
         self.big_blind = big_blind
+        self.initial_stacks = dict(players_data)
         self.players = [Player(name, chips) for name, chips in players_data.items()]
         self.button_index = random.randint(0, len(self.players) - 1)
         self.pot = 0
@@ -72,16 +74,18 @@ class Table:
         random.shuffle(deck)
         return deck
 
+    def _reset_players_for_new_hand(self):
+        for p in self.players:
+            p.chips = self.initial_stacks.get(p.name, p.chips)
+            p.in_pot = 0
+            p.is_active = True
+            p.hand = []
+
     def _assign_seats(self):
         """將玩家分配到 1-6 號座位，Hero 固定在 4 號。"""
         hero_player = self.get_hero()
         available_seats = [seat for seat in self.SEAT_ORDER if seat != self.HERO_SEAT]
         random.shuffle(available_seats)
-
-        for p in self.players:
-            p.in_pot = 0
-            p.is_active = True
-            p.hand = []
 
         if hero_player:
             hero_player.seat_number = self.HERO_SEAT
@@ -158,6 +162,7 @@ class Table:
         self.opponent_hands = []
         self.action_log = []
 
+        self._reset_players_for_new_hand()
         self._assign_seats()
         self._assign_positions()
         self._deal_cards()
@@ -354,7 +359,7 @@ class Table:
         players_state = []
         for i, p in enumerate(self.players):
             is_current = (i == self.current_player_index)
-            players_state.append(p.to_model(is_current))
+            players_state.append(p.to_model(is_current, self.current_round_bets.get(p.name, 0)))
 
         return {
             'pot_size': self.pot,

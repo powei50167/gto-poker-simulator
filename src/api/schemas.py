@@ -13,6 +13,7 @@ class PlayerState(BaseModel):
     seat_number: int
     chips: int
     in_pot: int
+    current_round_bet: int
     is_active: bool
     hand: List[CardModel] = [] # 只有當前行動的玩家會看到自己的手牌
 
