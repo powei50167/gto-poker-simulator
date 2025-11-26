@@ -63,6 +63,7 @@ class Table:
         self.opponent_hands: List[Dict[str, Any]] = []
         self.current_round_bets: Dict[str, int] = {}
         self.action_queue: List[int] = []
+        self.action_log: List[Dict[str, Any]] = []
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -155,6 +156,7 @@ class Table:
         self.hand_over = False
         self.current_stage = 'preflop'
         self.opponent_hands = []
+        self.action_log = []
 
         self._assign_seats()
         self._assign_positions()
@@ -168,6 +170,17 @@ class Table:
 
         self._post_blinds()
         self._start_preflop_action()
+
+    def _log_action(self, player: Player | None, action: str, amount: int = 0):
+        if not player:
+            return
+        self.action_log.append({
+            'name': player.name,
+            'position': player.position,
+            'seat_number': player.seat_number,
+            'action': action,
+            'amount': amount,
+        })
         
     def get_current_player(self) -> Player:
         """獲取當前行動的玩家"""
@@ -187,15 +200,18 @@ class Table:
 
         if action.action_type == 'Fold':
             player.fold()
+            self._log_action(player, 'Fold', 0)
         elif action.action_type == 'Check':
             if to_call != 0:
                 raise ValueError("無法過牌，必須至少跟注當前下注。")
+            self._log_action(player, 'Check', 0)
         elif action.action_type == 'Call':
             if to_call <= 0:
                 raise ValueError("目前無需跟注，請選擇過牌或下注。")
             contributed = player.bet(to_call)
             self.pot += contributed
             self.current_round_bets[player.name] = current_commit + contributed
+            self._log_action(player, 'Call', contributed)
         elif action.action_type in ['Bet', 'Raise']:
             if action.action_type == 'Bet' and self.current_bet > 0:
                 raise ValueError("當前已有下注，請選擇跟注或加注。")
@@ -208,6 +224,7 @@ class Table:
             self.current_round_bets[player.name] = current_commit + contributed
             self.current_bet = self.current_round_bets[player.name]
             self._reset_queue_after_raise(player)
+            self._log_action(player, action.action_type, action.amount)
             print(f"處理了 {player.position} 的行動: {action.action_type} {action.amount}")
             return
         else:
@@ -307,12 +324,14 @@ class Table:
             posted = sb_player.bet(small_blind)
             self.pot += posted
             self.current_round_bets[sb_player.name] = posted
+            self._log_action(sb_player, 'Post SB', posted)
 
         if bb_player:
             posted = bb_player.bet(self.big_blind)
             self.pot += posted
             self.current_round_bets[bb_player.name] = posted
             self.current_bet = self.big_blind
+            self._log_action(bb_player, 'Post BB', posted)
 
     def _reveal_opponents(self):
         """在牌局結束時揭露對手手牌供前端顯示。"""
@@ -345,5 +364,6 @@ class Table:
             'current_bet': self.current_bet,
             'current_stage': self.current_stage,
             'hand_over': self.hand_over,
-            'opponent_hands': self.opponent_hands
+            'opponent_hands': self.opponent_hands,
+            'action_log': self.action_log
         }

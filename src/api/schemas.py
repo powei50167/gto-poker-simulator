@@ -16,6 +16,16 @@ class PlayerState(BaseModel):
     is_active: bool
     hand: List[CardModel] = [] # 只有當前行動的玩家會看到自己的手牌
 
+
+class ActionLogEntry(BaseModel):
+    """紀錄玩家行動的簡易結構，便於前端顯示"""
+    name: str
+    position: str
+    seat_number: int
+    action: str
+    amount: int = 0
+
+
 class OpponentHand(BaseModel):
     """牌局結束時揭露的對手手牌資料"""
     name: str
@@ -33,6 +43,7 @@ class GameState(BaseModel):
     current_stage: str
     hand_over: bool
     opponent_hands: List[OpponentHand] = []
+    action_log: List[ActionLogEntry] = []
 
 class UserAction(BaseModel):
     """用戶從前端發送的行動請求"""
