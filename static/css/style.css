@@ -338,6 +338,12 @@ header h1 {
     border-bottom: none;
 }
 
+.action-entry.hero-action {
+    background: linear-gradient(90deg, rgba(85, 120, 200, 0.2), rgba(85, 120, 200, 0));
+    border-left: 4px solid #6fa8ff;
+    color: #d7e7ff;
+}
+
 .action-entry .actor {
     font-weight: bold;
     color: #ffcc66;
