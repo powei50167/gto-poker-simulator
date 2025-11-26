@@ -32,6 +32,12 @@ function formatCard(card) {
     return `<span style="color:${color};">${card.rank}${suit}</span>`;
 }
 
+function buildHandHtml(hand) {
+    if (!hand || !hand.length) return '';
+    const cards = hand.map(card => `<div class="card-slot small">${formatCard(card)}</div>`).join('');
+    return `<div class="player-hand">${cards}</div>`;
+}
+
 // 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
 function positionPlayerSlots() {
     // 圓心在 50% / 50%
@@ -78,26 +84,6 @@ function renderGameState(state) {
     const isHeroTurn = !!(heroPlayer && heroPlayer.position === state.action_position && !state.hand_over);
     const disableActions = state.hand_over || !isHeroTurn;
     toggleActionAvailability(disableActions);
-    
-    // 渲染手牌
-    const handDisplay = document.getElementById('current-hand');
-    const heroHand = heroPlayer && heroPlayer.hand && heroPlayer.hand.length ? heroPlayer.hand : null;
-    const fallbackHand = actionPlayer && actionPlayer.hand && actionPlayer.hand.length ? actionPlayer.hand : [];
-    const handToShow = heroHand || fallbackHand;
-
-    if (handToShow && handToShow.length) {
-        const cardHtml = handToShow.map(card => {
-            const formatted = formatCard(card);
-            return `<div class="card-slot">${formatted}</div>`;
-        }).join('');
-        handDisplay.innerHTML = cardHtml;
-    } else {
-         // 如果沒有玩家信息（例如剛開始牌局），顯示問號卡背
-        handDisplay.innerHTML = `
-            <div class="card-slot">?</div>
-            <div class="card-slot">?</div>
-        `;
-    }
 
     // 更新 Call 按鈕狀態
     const heroCommit = heroPlayer ? heroPlayer.current_round_bet || 0 : 0;
@@ -130,6 +116,12 @@ function renderGameState(state) {
         betInput.value = clampedValue;
     }
 
+    // 以座位為鍵記錄翻牌後揭露的手牌
+    const revealedHandsMap = new Map();
+    (state.opponent_hands || []).forEach(opp => {
+        revealedHandsMap.set(opp.seat_number, opp.hand);
+    });
+
     // 將後端返回的活躍玩家數據轉換為以座位為鍵的 Map
     const activePlayersMap = new Map(state.players.map(p => [p.seat_number, p]));
 
@@ -142,6 +134,10 @@ function renderGameState(state) {
         let slotContent;
         let slotClass;
 
+        const handToShow = p && p.hand && p.hand.length
+            ? p.hand
+            : revealedHandsMap.get(seat) || [];
+
         if (p) {
             // 活躍玩家
             const isTurn = p.position === state.action_position;
@@ -151,9 +147,13 @@ function renderGameState(state) {
                 slotClass += ' is-turn';
             }
 
+            const handHtml = buildHandHtml(handToShow);
             slotContent = `
-                <strong>Seat ${p.seat_number}</strong> - ${p.position} (${p.name})<br>
-                籌碼: $${p.chips} / In Pot: $${p.in_pot}
+                <div class="player-info">
+                    <strong>Seat ${p.seat_number}</strong> - ${p.position} (${p.name})
+                    <span>籌碼: $${p.chips} / In Pot: $${p.in_pot}</span>
+                </div>
+                ${handHtml}
             `;
         } else {
             // 閒置位置

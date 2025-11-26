@@ -96,10 +96,10 @@ header h1 {
     background-color: rgba(0, 0, 0, 0.4);
     border: 2px solid #ff9900;
     border-radius: 5px;
-    padding: 8px;
+    padding: 10px;
     text-align: center;
-    width: 120px; 
-    height: 50px; 
+    width: 150px;
+    min-height: 100px;
     font-size: 14px;
     position: absolute; /* 必須用絕對定位作為圓周佈局的基底 */
     transition: all 0.3s ease-in-out;
@@ -141,31 +141,6 @@ header h1 {
     gap: 10px;                /* 元素間距（可選） */
 }
 /* --- 玩家手牌區 --- */
-#player-hand-display {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    min-width: 260px;
-    background-color: #383838;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-    z-index: 10; /* 覆蓋在牌桌上 */
-}
-
-#player-hand-display h2 {
-    color: #ffcc66;
-    margin-top: 0;
-    font-size: 18px;
-    text-align: center;
-}
-
-.card-container {
-    display: flex;
-    gap: 10px; /* 卡牌間距 */
-    justify-content: center;
-}
-
 .card-slot {
     width: 70px;
     height: 80px;
@@ -175,21 +150,35 @@ header h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 36px;
+    font-size: 32px;
     font-weight: bold;
     color: black;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-.card-slot.small {
-    width: 55px;
-    height: 70px;
-    font-size: 28px;
+#player-slots-container .card-slot {
+    width: 60px;
+    height: 72px;
+    font-size: 30px;
 }
 
-.hand-cards {
+.card-slot.small {
+    width: 50px;
+    height: 64px;
+    font-size: 26px;
+}
+
+.player-hand {
     display: flex;
+    justify-content: center;
     gap: 6px;
+    margin-top: 6px;
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 /* 卡牌花色樣式 */
