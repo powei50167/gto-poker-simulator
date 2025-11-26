@@ -61,6 +61,8 @@ class Table:
         self.current_stage: str = 'preflop'
         self.hand_over: bool = False
         self.opponent_hands: List[Dict[str, Any]] = []
+        self.current_round_bets: Dict[str, int] = {}
+        self.action_queue: List[int] = []
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -123,6 +125,9 @@ class Table:
         start_idx = self.SEAT_ORDER.index(start_seat)
         # 從該座位開始旋轉
         return self.SEAT_ORDER[start_idx:] + self.SEAT_ORDER[:start_idx]
+
+    def _player_by_position(self, position: str) -> Player | None:
+        return next((p for p in self.players if p.position == position), None)
     
     def _deal_cards(self):
         self.deck = self._build_deck()
@@ -134,7 +139,6 @@ class Table:
             if player:
                 # 發兩張牌
                 dealt = [self.deck.pop(), self.deck.pop()]
-                print(type(dealt[0]))
                 # 排序（由大到小）
                 player.hand = sorted(
                     dealt,
@@ -157,15 +161,13 @@ class Table:
         self._deal_cards()
 
         self.pot = 0
-        self.current_bet = self.big_blind
+        self.current_bet = 0
+        self.current_round_bets = {p.name: 0 for p in self.players}
+        self.action_queue = []
+        self.community_cards = []
 
-        hero_player = self.get_hero()
-        if hero_player:
-            self.current_player_index = self.players.index(hero_player)
-        else:
-            self.current_player_index = 0
-
-        print("新的牌局已開始")
+        self._post_blinds()
+        self._start_preflop_action()
         
     def get_current_player(self) -> Player:
         """獲取當前行動的玩家"""
@@ -180,47 +182,137 @@ class Table:
             return
 
         player = self.get_current_player()
+        current_commit = self.current_round_bets.get(player.name, 0)
+        to_call = max(self.current_bet - current_commit, 0)
 
         if action.action_type == 'Fold':
             player.fold()
-            self.hand_over = True
-            self._reveal_opponents()
+        elif action.action_type == 'Check':
+            if to_call != 0:
+                raise ValueError("無法過牌，必須至少跟注當前下注。")
         elif action.action_type == 'Call':
-            to_call = self.current_bet - player.in_pot
-            if to_call < 0:
-                raise ValueError("無法跟注，應該 Check 或 Bet。")
-            if to_call > 0:
-                self.pot += player.bet(to_call)
-        elif action.action_type in ['Bet', 'Raise', 'Check']:
+            if to_call <= 0:
+                raise ValueError("目前無需跟注，請選擇過牌或下注。")
+            contributed = player.bet(to_call)
+            self.pot += contributed
+            self.current_round_bets[player.name] = current_commit + contributed
+        elif action.action_type in ['Bet', 'Raise']:
+            if action.action_type == 'Bet' and self.current_bet > 0:
+                raise ValueError("當前已有下注，請選擇跟注或加注。")
             amount = action.amount
-            if action.action_type in ['Bet', 'Raise']:
-                to_put_in = max(amount - player.in_pot, 0)
-                self.pot += player.bet(to_put_in)
-                self.current_bet = max(self.current_bet, amount)
+            if amount <= self.current_bet:
+                raise ValueError("下注/加注金額必須大於當前下注。")
+            to_put_in = max(amount - current_commit, 0)
+            contributed = player.bet(to_put_in)
+            self.pot += contributed
+            self.current_round_bets[player.name] = current_commit + contributed
+            self.current_bet = self.current_round_bets[player.name]
+            self._reset_queue_after_raise(player)
+            print(f"處理了 {player.position} 的行動: {action.action_type} {action.amount}")
+            return
         else:
             raise ValueError("無效的行動類型。")
 
-        if not self.hand_over:
-            self._advance_stage()
-            if self.current_stage == 'showdown':
-                self.hand_over = True
-                self._reveal_opponents()
-
         print(f"處理了 {player.position} 的行動: {action.action_type} {action.amount}")
+        self._advance_to_next_player()
 
     def _advance_stage(self):
-        """Hero 行動後自動推進牌局直到河牌決策。"""
+        """依序進入翻牌、轉牌、河牌的下注流程"""
         if self.current_stage == 'preflop':
-            self.community_cards.extend([self.deck.pop() for _ in range(3)])
-            self.current_stage = 'flop'
+            self._deal_community_cards(3)
+            self._start_postflop_round('flop')
         elif self.current_stage == 'flop':
-            self.community_cards.append(self.deck.pop())
-            self.current_stage = 'turn'
+            self._deal_community_cards(1)
+            self._start_postflop_round('turn')
         elif self.current_stage == 'turn':
-            self.community_cards.append(self.deck.pop())
-            self.current_stage = 'river'
+            self._deal_community_cards(1)
+            self._start_postflop_round('river')
         elif self.current_stage == 'river':
             self.current_stage = 'showdown'
+            self.hand_over = True
+            self._reveal_opponents()
+
+    def _deal_community_cards(self, count: int):
+        self.community_cards.extend([self.deck.pop() for _ in range(count)])
+
+    def _start_preflop_action(self):
+        """建立翻前的行動隊列，從 UTG 開始"""
+        self.current_stage = 'preflop'
+        self.action_queue = self._build_action_queue('UTG')
+        self._advance_to_next_player()
+
+    def _start_postflop_round(self, stage_name: str):
+        """開始翻牌/轉牌/河牌階段並建立新的下注隊列"""
+        if self.hand_over:
+            return
+
+        self.current_stage = stage_name
+        self.current_bet = 0
+        self.current_round_bets = {p.name: 0 for p in self.players if p.is_active}
+        self.action_queue = self._build_action_queue('SB')
+        if not self.action_queue:
+            self.hand_over = True
+            self.current_stage = 'showdown'
+            self._reveal_opponents()
+            return
+        self._advance_to_next_player()
+
+    def _build_action_queue(self, start_position: str) -> List[int]:
+        seats = self._seat_sequence_from_position(start_position)
+        queue: List[int] = []
+        for seat in seats:
+            player = self._player_in_seat(seat)
+            if player and player.is_active:
+                queue.append(self.players.index(player))
+        return queue
+
+    def _reset_queue_after_raise(self, raiser: Player):
+        seats = self._seat_sequence_from_position(raiser.position)[1:]
+        queue: List[int] = []
+        for seat in seats:
+            player = self._player_in_seat(seat)
+            if player and player.is_active and player is not raiser:
+                queue.append(self.players.index(player))
+        self.action_queue = queue
+        if not self.action_queue:
+            self._end_betting_round()
+        else:
+            self._advance_to_next_player()
+
+    def _advance_to_next_player(self):
+        while self.action_queue:
+            next_index = self.action_queue.pop(0)
+            player = self.players[next_index]
+            if player.is_active:
+                self.current_player_index = next_index
+                return
+        self._end_betting_round()
+
+    def _end_betting_round(self):
+        active_players = [p for p in self.players if p.is_active]
+        if len(active_players) <= 1:
+            self.hand_over = True
+            self.current_stage = 'showdown'
+            self._reveal_opponents()
+            return
+        self._advance_stage()
+
+    def _post_blinds(self):
+        """SB/BB 支付盲注，更新底池與當前注額"""
+        small_blind = max(self.big_blind // 2, 1)
+        sb_player = self._player_by_position('SB')
+        bb_player = self._player_by_position('BB')
+
+        if sb_player:
+            posted = sb_player.bet(small_blind)
+            self.pot += posted
+            self.current_round_bets[sb_player.name] = posted
+
+        if bb_player:
+            posted = bb_player.bet(self.big_blind)
+            self.pot += posted
+            self.current_round_bets[bb_player.name] = posted
+            self.current_bet = self.big_blind
 
     def _reveal_opponents(self):
         """在牌局結束時揭露對手手牌供前端顯示。"""

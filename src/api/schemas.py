@@ -39,6 +39,13 @@ class UserAction(BaseModel):
     action_type: str # 'Fold', 'Call', 'Raise', 'Bet', 'Check'
     amount: int = 0  # 僅 Bet/Raise 時需要，代表總投入的金額
 
+
+class AIActionResponse(BaseModel):
+    """AI 幫助決策的行動回應"""
+    actor: str
+    action_type: str
+    amount: int
+
 class GTOActionData(BaseModel):
     """GTO 建議的單個行動數據"""
     action: str

@@ -1,11 +1,18 @@
 import os
 import json
 from typing import List
-from src.api.schemas import GameState, UserAction, GTOFeedback, GTOActionData, CardModel
+from src.api.schemas import (
+    GameState,
+    UserAction,
+    GTOFeedback,
+    GTOActionData,
+    CardModel,
+)
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class StrategyLogic:
     def __init__(self):
@@ -101,8 +108,54 @@ class StrategyLogic:
                 GTOActionData(action="Raise", frequency=0, ev_bb=0),
                 GTOActionData(action="Fold", frequency=0, ev_bb=0),
             ],
-            explanation="AI Agent 異常或回傳非法 JSON，系統回傳預設資料。"
+            explanation="AI Agent 異常或回傳非法 JSON，系統回傳預設資料。",
         )
+
+    def decide_opponent_action(self, game_state: GameState) -> UserAction:
+        """使用 OpenAI 決策目前行動玩家（非 Hero）的行動"""
+
+        players = game_state.players
+        acting_player = next((p for p in players if p.position == game_state.action_position), None)
+        to_call = 0
+        if acting_player:
+            to_call = max(game_state.current_bet - acting_player.in_pot, 0)
+
+        prompt = f"""
+你現在扮演德州撲克玩家，根據以下桌面資訊給出你的行動並回傳 JSON：
+
+{self._build_state_description(game_state, acting_player.hand if acting_player else [])}
+
+可用行動：Fold、Call、Check、Bet、Raise。
+請只輸出 JSON，格式如下：
+{{"action_type": "Call/Check/Raise/Bet/Fold", "amount": 數字}}
+不要包含額外說明、markdown 或程式碼框。
+"""
+
+        reply = ""
+        if self.api_key and self.client:
+            try:
+                response = self.client.responses.create(
+                    model="gpt-4o-mini",
+                    input=[
+                        {"role": "system", "content": "你是一位冷靜理性的德州撲克玩家，請給出合理行動。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+
+                reply = response.output_text
+                data = self._parse_json_reply(reply)
+                action_type = data.get("action_type", "Call")
+                amount = int(data.get("amount", to_call))
+                return UserAction(action_type=action_type, amount=amount)
+            except Exception as e:
+                print("GPT error while deciding opponent action:", e)
+                print("GPT raw reply:")
+                print(reply)
+
+        # fallback 邏輯：沒有 OpenAI 或解析失敗時使用簡單策略
+        if to_call > 0:
+            return UserAction(action_type="Call", amount=to_call)
+        return UserAction(action_type="Check", amount=0)
 
     def _parse_json_reply(self, reply: str) -> dict:
         """

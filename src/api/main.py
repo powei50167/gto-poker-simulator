@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from src.core.game_state import Table
 from src.gto_poker_simulator.strategy_logic import StrategyLogic
-from .schemas import GameState, UserAction, GTOFeedback
+from .schemas import GameState, UserAction, GTOFeedback, AIActionResponse
 
 app = FastAPI()
 
@@ -53,5 +53,30 @@ async def submit_action(action: UserAction):
         game_state=current_state,
         user_action=action
     )
-    
+
     return feedback
+
+
+@app.post("/api/ai_action", response_model=AIActionResponse)
+async def decide_ai_action():
+    """呼叫 OpenAI 為非 Hero 玩家做出行動決策"""
+    if game_table.hand_over:
+        raise HTTPException(status_code=400, detail="牌局已結束，請先開始新牌局。")
+
+    acting_player = game_table.get_current_player()
+    if acting_player.name.lower() == 'hero':
+        raise HTTPException(status_code=400, detail="目前輪到 Hero 行動，請由玩家操作。")
+
+    current_state = GameState(**game_table.get_state_for_frontend())
+    ai_decision = gto_logic.decide_opponent_action(current_state)
+
+    try:
+        game_table.process_action(ai_decision)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return AIActionResponse(
+        actor=acting_player.name,
+        action_type=ai_decision.action_type,
+        amount=ai_decision.amount,
+    )
