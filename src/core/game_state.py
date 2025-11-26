@@ -45,11 +45,11 @@ class Player:
         }
 
 class Table:
-    POSITIONS = ['BB', 'SB', 'BTN', 'CO', 'MP', 'UTG']
+    POSITIONS = ['🅱️BTN', 'SB', 'BB', 'UTG', 'MP', 'CO']
     HERO_SEAT = 4
     SEAT_ORDER = [1, 2, 3, 4, 5, 6]
 
-    def __init__(self, players_data: Dict[str, int], big_blind: int = 20):
+    def __init__(self, players_data: Dict[str, int], big_blind: int = 100):
         self.big_blind = big_blind
         self.players = [Player(name, chips) for name, chips in players_data.items()]
         self.button_index = random.randint(0, len(self.players) - 1)
@@ -113,14 +113,33 @@ class Table:
             if player:
                 player.position = pos
 
+    def _seat_sequence_from_position(self, position: str) -> List[int]:
+        """回傳從指定位置開始的座位循環順序。"""
+        # 找出指定位置的座位號
+        start_seat = next(
+            (p.seat_number for p in self.players if p.position == position),
+            self.HERO_SEAT  # 如果沒找到則預設用 HERO_SEAT
+        )
+        start_idx = self.SEAT_ORDER.index(start_seat)
+        # 從該座位開始旋轉
+        return self.SEAT_ORDER[start_idx:] + self.SEAT_ORDER[:start_idx]
+    
     def _deal_cards(self):
         self.deck = self._build_deck()
 
-        # 依照 Hero 開始的座位順序發給每位玩家兩張不重複的手牌
-        for seat in self._seat_sequence_from_hero():
+        ranks_order = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
+
+        for seat in self._seat_sequence_from_position('SB'):
             player = self._player_in_seat(seat)
             if player:
-                player.hand = [self.deck.pop(), self.deck.pop()]
+                # 發兩張牌
+                dealt = [self.deck.pop(), self.deck.pop()]
+                print(type(dealt[0]))
+                # 排序（由大到小）
+                player.hand = sorted(
+                    dealt,
+                    key=lambda c: ranks_order.index(c.rank),
+                )
 
         # 翻前開始，因此公共牌為空
         self.community_cards = []
@@ -146,7 +165,7 @@ class Table:
         else:
             self.current_player_index = 0
 
-        print("新的牌局已啟動，Hero 等待行動...")
+        print("新的牌局已開始")
         
     def get_current_player(self) -> Player:
         """獲取當前行動的玩家"""

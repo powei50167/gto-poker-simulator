@@ -9,9 +9,9 @@ from .schemas import GameState, UserAction, GTOFeedback
 app = FastAPI()
 
 # 初始化核心組件
-players_init = {'hero': 2000, 'Player2': 2000, 'Player3': 2000, 
-                'Player4': 2000, 'Player5': 2000, 'Player6': 2000}
-game_table = Table(players_init, big_blind=20)
+players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000, 
+                'Player4': 10000, 'Player5': 10000, 'Player6': 10000}
+game_table = Table(players_init, big_blind=100)
 gto_logic = StrategyLogic()
 
 # 定義靜態文件路徑
