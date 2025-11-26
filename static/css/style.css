@@ -184,6 +184,17 @@ header h1 {
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
 }
 
+.card-slot.small {
+    width: 55px;
+    height: 70px;
+    font-size: 28px;
+}
+
+.hand-cards {
+    display: flex;
+    gap: 6px;
+}
+
 /* 卡牌花色樣式 */
 .card-slot .red {
     color: red;
@@ -208,6 +219,29 @@ header h1 {
 #opponent-hands ul {
     padding-left: 18px;
     margin: 8px 0;
+}
+
+.opponent-hand-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.opponent-hand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: #1f1f1f;
+    border: 1px solid #444;
+    border-radius: 6px;
+}
+
+.opponent-info {
+    font-size: 14px;
 }
 
 #feedback-panel {
@@ -250,6 +284,24 @@ header h1 {
 #action-log-panel h3 {
     margin: 0 0 8px 0;
     color: #9ad1ff;
+}
+
+.action-stage {
+    margin-bottom: 12px;
+}
+
+.stage-title {
+    font-weight: bold;
+    color: #ffcc66;
+    border-bottom: 1px solid #444;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+}
+
+.stage-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .scrollable-box {

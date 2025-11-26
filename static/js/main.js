@@ -15,6 +15,14 @@ const SEAT_ANGLES_CSS = {
     6: 210  // 左上
 };
 
+const STAGE_LABELS = {
+    preflop: '翻前',
+    flop: '翻牌',
+    turn: '轉牌',
+    river: '河牌',
+    showdown: '攤牌'
+};
+
 
 // --- 輔助函數 ---
 function formatCard(card) {
@@ -73,10 +81,12 @@ function renderGameState(state) {
     
     // 渲染手牌
     const handDisplay = document.getElementById('current-hand');
-    const handOwner = heroPlayer || actionPlayer;
+    const heroHand = heroPlayer && heroPlayer.hand && heroPlayer.hand.length ? heroPlayer.hand : null;
+    const fallbackHand = actionPlayer && actionPlayer.hand && actionPlayer.hand.length ? actionPlayer.hand : [];
+    const handToShow = heroHand || fallbackHand;
 
-    if (handOwner) {
-        const cardHtml = handOwner.hand.map(card => {
+    if (handToShow && handToShow.length) {
+        const cardHtml = handToShow.map(card => {
             const formatted = formatCard(card);
             return `<div class="card-slot">${formatted}</div>`;
         }).join('');
@@ -203,11 +213,16 @@ function renderOpponentHands(state) {
     }
 
     const listHtml = state.opponent_hands.map(opp => {
-        const cards = opp.hand.map(formatCard).join(' ');
-        return `<li><strong>Seat ${opp.seat_number}</strong> - ${opp.position} (${opp.name}): ${cards}</li>`;
+        const cards = opp.hand.map(card => `<div class="card-slot small">${formatCard(card)}</div>`).join('');
+        return `
+            <li class="opponent-hand">
+                <div class="opponent-info"><strong>Seat ${opp.seat_number}</strong> - ${opp.position} (${opp.name})</div>
+                <div class="hand-cards">${cards}</div>
+            </li>
+        `;
     }).join('');
 
-    container.innerHTML = `<ul>${listHtml}</ul>`;
+    container.innerHTML = `<ul class="opponent-hand-list">${listHtml}</ul>`;
 }
 
 function renderActionLog(logEntries) {
@@ -221,12 +236,26 @@ function renderActionLog(logEntries) {
         return;
     }
 
-    const listHtml = filtered.map(entry => {
-        const amountPart = entry.amount > 0 ? ` $${entry.amount}` : '';
-        return `<div class="action-entry"><span class="actor">Seat ${entry.seat_number} ${entry.position} (${entry.name})</span>：<span class="action-type">${entry.action}</span>${amountPart}</div>`;
+    const stageOrder = ['preflop', 'flop', 'turn', 'river', 'showdown'];
+    const groupedHtml = stageOrder.map(stage => {
+        const entries = filtered.filter(entry => entry.stage === stage);
+        if (!entries.length) return '';
+
+        const stageLabel = STAGE_LABELS[stage] || stage.toUpperCase();
+        const entryHtml = entries.map(entry => {
+            const amountPart = entry.amount > 0 ? ` $${entry.amount}` : '';
+            return `<div class="action-entry"><span class="actor">Seat ${entry.seat_number} ${entry.position} (${entry.name})</span>：<span class="action-type">${entry.action}</span>${amountPart}</div>`;
+        }).join('');
+
+        return `
+            <div class="action-stage">
+                <div class="stage-title">${stageLabel}</div>
+                <div class="stage-entries">${entryHtml}</div>
+            </div>
+        `;
     }).join('');
 
-    container.innerHTML = listHtml;
+    container.innerHTML = groupedHtml;
 }
 
 function toggleActionAvailability(disabled) {
