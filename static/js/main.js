@@ -248,22 +248,22 @@ function renderActionLog(logEntries) {
     const container = document.getElementById('action-log');
     if (!container) return;
 
-    const filtered = logEntries.filter(entry => entry.name.toLowerCase() !== 'hero');
-
-    if (!filtered.length) {
-        container.innerHTML = '<p>尚無其他玩家行動紀錄。</p>';
+    if (!logEntries.length) {
+        container.innerHTML = '<p>尚無行動紀錄。</p>';
         return;
     }
 
     const stageOrder = ['preflop', 'flop', 'turn', 'river', 'showdown'];
     const groupedHtml = stageOrder.map(stage => {
-        const entries = filtered.filter(entry => entry.stage === stage);
+        const entries = logEntries.filter(entry => entry.stage === stage);
         if (!entries.length) return '';
 
         const stageLabel = STAGE_LABELS[stage] || stage.toUpperCase();
         const entryHtml = entries.map(entry => {
             const amountPart = entry.amount > 0 ? ` $${entry.amount}` : '';
-            return `<div class="action-entry"><span class="actor">Seat ${entry.seat_number} ${entry.position} (${entry.name})</span>：<span class="action-type">${entry.action}</span>${amountPart}</div>`;
+            const isHero = entry.name.toLowerCase() === 'hero';
+            const heroClass = isHero ? ' hero-action' : '';
+            return `<div class="action-entry${heroClass}"><span class="actor">Seat ${entry.seat_number} ${entry.position} (${entry.name})</span>：<span class="action-type">${entry.action}</span>${amountPart}</div>`;
         }).join('');
 
         return `

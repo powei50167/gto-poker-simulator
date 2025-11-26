@@ -339,9 +339,10 @@ class Table:
     def _end_betting_round(self):
         active_players = [p for p in self.players if p.is_active]
         if len(active_players) <= 1:
+            winner = active_players[0] if active_players else None
+            self._refund_uncalled_chips(winner)
             self.hand_over = True
             self.current_stage = 'showdown'
-            winner = active_players[0] if active_players else None
             self._set_hand_result(winner)
             self._reveal_opponents()
             return
@@ -378,6 +379,26 @@ class Table:
                 'seat_number': p.seat_number,
                 'hand': [c.to_model() for c in p.hand]
             })
+
+    def _refund_uncalled_chips(self, winner: Player | None):
+        """將未被跟注的籌碼退還給最後的下注者。"""
+        if not winner:
+            return
+
+        highest_other_bet = max(
+            (bet for name, bet in self.current_round_bets.items() if name != winner.name),
+            default=0
+        )
+        winner_bet = self.current_round_bets.get(winner.name, 0)
+        uncalled = max(winner_bet - highest_other_bet, 0)
+
+        if uncalled > 0:
+            refund = min(uncalled, self.pot)
+            winner.chips += refund
+            winner.in_pot = max(winner.in_pot - refund, 0)
+            self.pot -= refund
+            self.current_round_bets[winner.name] = winner_bet - refund
+            self.current_bet = highest_other_bet
 
     def _set_hand_result(self, winner: Player | None):
         """記錄牌局結果並將底池分配給贏家。"""
