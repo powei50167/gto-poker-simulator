@@ -123,7 +123,7 @@ class StrategyLogic:
             to_call = max(game_state.current_bet - acting_player.current_round_bet, 0)
 
         prompt = f"""
-你現在扮演德州撲克玩家，根據以下桌面資訊給出你的行動並回傳 JSON：
+你現在扮演德州撲克6人現金桌玩家，根據以下桌面資訊給出你的行動並回傳 JSON：
 
 {self._build_state_description(game_state, acting_player.hand if acting_player else [])}
 
@@ -139,7 +139,7 @@ class StrategyLogic:
                 response = self.client.responses.create(
                     model="gpt-4o-mini",
                     input=[
-                        {"role": "system", "content": "你是一位冷靜理性的德州撲克玩家，請給出合理行動。"},
+                        {"role": "system", "content": "你是一位德州撲克6人現金桌玩家，請根據gto策略給出合理行動。"},
                         {"role": "user", "content": prompt},
                     ],
                 )
