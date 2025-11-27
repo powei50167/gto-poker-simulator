@@ -81,8 +81,8 @@ button:disabled {
 #table-view {
     background-color: #006400; /* 綠色牌桌布 */
     border-radius: 50%;
-    width: 500px; 
-    height: 500px; 
+    width: 600px; 
+    height: 600px; 
     padding: 40px;
     margin: 20px auto; 
     position: relative;
@@ -474,3 +474,22 @@ button:disabled {
 .action-entry .action-type {
     color: #7fe07f;
 }
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;          /* 籌碼 與 In Pot 之間的間距 */
+    font-size: 14px;
+  }
+  
+  .in-pot-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid #ffb74d;      /* 外框顏色 */
+    border-radius: 999px;           /* 膠囊形狀 */
+    background: rgba(255, 183, 77, 0.1); /* 淡淡底色 */
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    /* 可選：字體顏色 */
+    color: #ffb74d;
+  }

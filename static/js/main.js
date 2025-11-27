@@ -152,8 +152,11 @@ function renderGameState(state) {
             const handHtml = buildHandHtml(handToShow);
             slotContent = `
                 <div class="player-info">
-                    <strong>Seat ${p.seat_number}</strong> - ${p.position} (${p.name})
-                    <span>籌碼: $${p.chips} / In Pot: $${p.in_pot}</span>
+                    <strong>Seat ${p.seat_number}【${p.position}】</strong>  ${p.name}
+                   <div class="info-row">
+                        <span>籌碼: $${p.chips}</span>
+                        <span class="in-pot-badge">In Pot: $${p.in_pot}</span>
+                    </div>
                 </div>
                 ${handHtml}
             `;
