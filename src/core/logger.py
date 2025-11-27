@@ -66,7 +66,7 @@ def get_logger(name: str = "gto_poker_simulator") -> logging.Logger:
     global _LOGGER_CONFIGURED
 
     if not _LOGGER_CONFIGURED:
-        log_path = Path(r"C:\Users\rain50167\Desktop\PROJECT\gto-poker-simulator") / "LOG"
+        log_path = Path(r"C:\Users\rain50167\Desktop\PROJECT\gto-poker-simulator") / "simulator.log"
         formatter = ExtraFormatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )

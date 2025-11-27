@@ -40,7 +40,7 @@ class StrategyLogic:
 
         # 要求 GPT 回傳 JSON（強調不要使用 ```）
         prompt = f"""
-你是一位德州撲克 GTO 策略分析師，請依據以下牌局資訊提供完整的 GTO 評估：
+你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因：
 
 {state_desc}
 
@@ -68,7 +68,9 @@ class StrategyLogic:
         logger.info(
             "OpenAI prompt for user action evaluation",
             extra={
-                "prompt": prompt,
+                "【牌桌資訊】": state_desc,
+                "【玩家行動：】": user_action.action_type,
+                "【數額：】": user_action.amount,
                 "stage": game_state.current_stage,
                 "action": user_action.model_dump(),
             },
@@ -79,7 +81,7 @@ class StrategyLogic:
                 response = self.client.responses.create(
                     model="gpt-4o-mini",
                     input=[
-                        {"role": "system", "content": "你是一位專業德州撲克 GTO 策略分析師。"},
+                        {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
                         {"role": "user", "content": prompt}
                     ]
                 )
@@ -90,7 +92,7 @@ class StrategyLogic:
                 logger.info(
                     "OpenAI response for user action evaluation",
                     extra={
-                        "reply": reply,
+                        "【AI生成內容】": reply,
                         "stage": game_state.current_stage,
                         "action": user_action.model_dump(),
                     },
@@ -165,7 +167,7 @@ class StrategyLogic:
         logger.info(
             "OpenAI prompt for opponent action",
             extra={
-                "prompt": prompt,
+                "【牌桌資訊】": {self._build_state_description(game_state, acting_player.hand if acting_player else [])},
                 "actor": acting_player.name if acting_player else None,
                 "stage": game_state.current_stage,
             },
@@ -185,7 +187,7 @@ class StrategyLogic:
                 logger.info(
                     "OpenAI response for opponent action",
                     extra={
-                        "reply": reply,
+                        "【AI生成內容】": reply,
                         "actor": acting_player.name if acting_player else None,
                         "stage": game_state.current_stage,
                     },
