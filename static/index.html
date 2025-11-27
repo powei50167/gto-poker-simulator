@@ -11,7 +11,7 @@
         <main>
             <header id="scenario-setup">
                 <!-- <h1>GTO 情境訓練</h1> -->
-                <button id="start-hand-btn">開始新牌局 (POST /api/new_hand)</button>
+                <button id="start-hand-btn">開始新牌局</button>
             </header>
 
             <div id="table-view">
@@ -34,14 +34,9 @@
                 </div>
                 
                 <div id="bet-control" style="margin-top: 15px;">
-                    金額: <input type="number" id="bet-amount-input" value="400" min="1">
-                    <button id="submit-bet-btn">確認下注</button>
+                    金額: <input type="number" id="bet-amount-input" value="300" min="1">
+                    <button id="submit-bet-btn">加註</button>
                 </div>
-            </section>
-
-            <section id="opponent-panel">
-                <h3>對手手牌</h3>
-                <div id="opponent-hands"><p>牌局尚未結束，對手手牌隱藏。</p></div>
             </section>
 
             <section id="result-panel">

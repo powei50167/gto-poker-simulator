@@ -173,8 +173,6 @@ function renderGameState(state) {
     
     document.getElementById('player-slots-container').innerHTML = playerHtml;
     
-    // 牌局結束時揭露對手手牌
-    renderOpponentHands(state);
 
     // 調用定位函數
     positionPlayerSlots();
@@ -217,32 +215,6 @@ async function fetchState() {
     }
 }
 
-function renderOpponentHands(state) {
-    const container = document.getElementById('opponent-hands');
-    if (!container) return;
-
-    if (!state.hand_over) {
-        container.innerHTML = '<p>牌局尚未結束，對手手牌隱藏。</p>';
-        return;
-    }
-
-    if (!state.opponent_hands.length) {
-        container.innerHTML = '<p>沒有可顯示的對手手牌。</p>';
-        return;
-    }
-
-    const listHtml = state.opponent_hands.map(opp => {
-        const cards = opp.hand.map(card => `<div class="card-slot small">${formatCard(card)}</div>`).join('');
-        return `
-            <li class="opponent-hand">
-                <div class="opponent-info"><strong>Seat ${opp.seat_number}</strong> - ${opp.position} (${opp.name})</div>
-                <div class="hand-cards">${cards}</div>
-            </li>
-        `;
-    }).join('');
-
-    container.innerHTML = `<ul class="opponent-hand-list">${listHtml}</ul>`;
-}
 
 function renderActionLog(logEntries) {
     const container = document.getElementById('action-log');
@@ -397,5 +369,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 首次載入時啟動新牌局
-    startNewHand(); 
+    // startNewHand(); 
 });
