@@ -34,6 +34,7 @@ class StrategyLogic:
         action_position = game_state.action_position
         acting_player = next((p for p in players if p.position == action_position), None)
         hand = acting_player.hand if acting_player else []
+        hero_stack = acting_player.chips if acting_player else 0
 
         # 組合分析描述
         state_desc = self._build_state_description(game_state, hand)
@@ -42,9 +43,7 @@ class StrategyLogic:
         prompt = f"""
 你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因：
 
-{state_desc}
-
-玩家行動：{user_action.action_type}, 數額：{user_action.amount}
+牌桌資訊: {state_desc}, 玩家行動：{user_action.action_type}, 下注金額：{user_action.amount}, 剩餘籌碼:{hero_stack} 
 
 請以「純 JSON」格式輸出以下欄位（不要加任何 ``` 符號，也不要加多餘說明文字）：
 
@@ -156,8 +155,9 @@ class StrategyLogic:
 你現在扮演德州撲克6人現金桌玩家，根據以下桌面資訊給出你的行動並回傳 JSON：
 
 {self._build_state_description(game_state, acting_player.hand if acting_player else [])}
+剩餘籌碼：{acting_stack}
 
-可用行動：Fold、Call、Check、Bet、Raise。
+可用行動：Fold、Call、Check、Bet、Raise、AllIn。
 請只輸出 JSON，格式如下：
 {{"action_type": "Call/Check/Raise/Bet/Fold", "amount": 數字}}
 不要包含額外說明、markdown 或程式碼框。
@@ -169,6 +169,7 @@ class StrategyLogic:
             "OpenAI prompt for opponent action",
             extra={
                 "【牌桌資訊】": {self._build_state_description(game_state, acting_player.hand if acting_player else [])},
+                "剩餘籌碼：": acting_stack,
                 "actor": acting_player.name if acting_player else None,
                 "stage": game_state.current_stage,
             },
