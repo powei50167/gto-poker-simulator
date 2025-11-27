@@ -65,6 +65,15 @@ class StrategyLogic:
 
         reply = ""  # 先定義，避免例外時變成未定義變數
 
+        logger.info(
+            "OpenAI prompt for user action evaluation",
+            extra={
+                "prompt": prompt,
+                "stage": game_state.current_stage,
+                "action": user_action.model_dump(),
+            },
+        )
+
         if self.api_key and self.client:
             try:
                 response = self.client.responses.create(
@@ -77,6 +86,15 @@ class StrategyLogic:
 
                 # 這裡依照你 SDK 的用法，如果不是 output_text 可以換成對應欄位
                 reply = response.output_text
+
+                logger.info(
+                    "OpenAI response for user action evaluation",
+                    extra={
+                        "reply": reply,
+                        "stage": game_state.current_stage,
+                        "action": user_action.model_dump(),
+                    },
+                )
 
                 data = self._parse_json_reply(reply)
 
@@ -143,6 +161,15 @@ class StrategyLogic:
 """
 
         reply = ""
+
+        logger.info(
+            "OpenAI prompt for opponent action",
+            extra={
+                "prompt": prompt,
+                "actor": acting_player.name if acting_player else None,
+                "stage": game_state.current_stage,
+            },
+        )
         if self.api_key and self.client:
             try:
                 response = self.client.responses.create(
@@ -154,6 +181,15 @@ class StrategyLogic:
                 )
 
                 reply = response.output_text
+
+                logger.info(
+                    "OpenAI response for opponent action",
+                    extra={
+                        "reply": reply,
+                        "actor": acting_player.name if acting_player else None,
+                        "stage": game_state.current_stage,
+                    },
+                )
                 data = self._parse_json_reply(reply)
                 action_type = data.get("action_type", "Call")
                 amount = int(data.get("amount", to_call))
