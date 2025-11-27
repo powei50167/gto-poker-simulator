@@ -195,7 +195,7 @@ function renderFeedback(feedback) {
         <p class="${feedback.user_action_correct ? 'correct' : 'error'}">
             ${feedback.user_action_correct ? '✅ 符合 GTO' : '❌ 偏離 GTO'}
         </p>
-        <p>EV Loss: <strong>${feedback.ev_loss_bb} BB</strong></p>
+        <p>EV Loss: <strong>${feedback.ev_loss_bb} </strong></p>
     `;
     document.getElementById('error-explanation').textContent = feedback.explanation;
 

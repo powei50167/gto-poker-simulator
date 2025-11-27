@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 
-_LOGGER_CONFIGURED = False
+_LOGGER_CONFIGURED = {}
 
 
 class ExtraFormatter(logging.Formatter):
@@ -56,31 +56,42 @@ class ExtraFormatter(logging.Formatter):
         return f"{base_message} | extra={serialized_extra}"
 
 
-def get_logger(name: str = "gto_poker_simulator") -> logging.Logger:
-    """Return a shared logger that writes to the project-level LOG file.
-
-    The logger is configured once with both file and stdout handlers so that
-    all modules can emit signals for easier debugging.
+def get_logger(name: str = "gto_poker_simulator", log_type: str = "general") -> logging.Logger:
     """
-
+    根據傳入的 log_type 回傳不同檔案的 logger。
+    log_type 可指定為 "general" 或 "openai"。
+    """
+    # 使用 (name, log_type) 當作 key，避免重複設定處理器
     global _LOGGER_CONFIGURED
+    key = (name, log_type)
+    if key in _LOGGER_CONFIGURED:
+        return _LOGGER_CONFIGURED[key]
 
-    if not _LOGGER_CONFIGURED:
-        log_path = Path(r"C:\Users\rain50167\Desktop\PROJECT\gto-poker-simulator") / "simulator.log"
-        formatter = ExtraFormatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        )
+    # 建立新的 logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-        file_handler = logging.FileHandler(log_path, encoding="utf-8")
-        file_handler.setFormatter(formatter)
+    # 根據 log_type 決定要寫入的檔名
+    # 假設 log 路徑與專案根目錄相同
+    base_dir = Path(__file__).resolve().parents[2]
+    log_filename = "openai.log" if log_type.lower() == "openai" else "simulator.log"
+    log_path = base_dir / log_filename
 
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
+    formatter = ExtraFormatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-        logging.basicConfig(
-            level=logging.INFO,
-            handlers=[file_handler, stream_handler],
-        )
-        _LOGGER_CONFIGURED = True
+    # 檔案處理器
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-    return logging.getLogger(name)
+    # 主控台處理器（選用）
+    # stream_handler = logging.StreamHandler()
+    # stream_handler.setFormatter(formatter)
+    # logger.addHandler(stream_handler)
+
+    # 防止訊息往上層 logger 傳遞，避免重複紀錄
+    logger.propagate = False
+
+    # 記錄這個 logger 已經配置過
+    _LOGGER_CONFIGURED[key] = logger
+    return logger

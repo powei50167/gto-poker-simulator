@@ -15,7 +15,7 @@ from src.core.logger import get_logger
 load_dotenv()
 
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, log_type="openai")
 
 
 class StrategyLogic:
@@ -52,6 +52,7 @@ class StrategyLogic:
   "user_action_correct": true 或 false,
   "ev_loss_bb": 數字,
   "gto_matrix": [
+    {{"action": "Check", "frequency": 0~1, "ev_bb": 數字}},
     {{"action": "Call", "frequency": 0~1, "ev_bb": 數字}},
     {{"action": "Raise", "frequency": 0~1, "ev_bb": 數字}},
     {{"action": "Fold", "frequency": 0~1, "ev_bb": 數字}}
