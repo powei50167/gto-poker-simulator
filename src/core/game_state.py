@@ -1,6 +1,9 @@
 import random
 from typing import List, Dict, Any
 from src.api.schemas import UserAction
+from src.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 # 假設 Card 和 Player 類已定義 (如前所述)
 class Card:
@@ -178,6 +181,14 @@ class Table:
 
         self._post_blinds()
         self._start_preflop_action()
+        logger.info(
+            "Hand initialized",
+            extra={
+                "button_index": self.button_index,
+                "hero_seat": self.HERO_SEAT,
+                "positions": {p.name: p.position for p in self.players},
+            },
+        )
 
     def _log_action(self, player: Player | None, action: str, amount: int = 0):
         if not player:
@@ -190,6 +201,17 @@ class Table:
             'stage': self.current_stage,
             'amount': amount,
         })
+        logger.info(
+            "Action logged",
+            extra={
+                "name": player.name,
+                "position": player.position,
+                "seat_number": player.seat_number,
+                "action": action,
+                "stage": self.current_stage,
+                "amount": amount,
+            },
+        )
         
     def get_current_player(self) -> Player:
         """獲取當前行動的玩家"""
@@ -200,7 +222,7 @@ class Table:
     def process_action(self, action: UserAction):
         """處理用戶行動 (簡化版)"""
         if self.hand_over:
-            print("本局已結束，請開始新牌局。")
+            logger.warning("Action received after hand over")
             return
 
         player = self.get_current_player()
@@ -235,7 +257,15 @@ class Table:
             self.current_bet = self.current_round_bets[player.name]
             self._reset_queue_after_raise(player)
             self._log_action(player, action.action_type, self.current_bet)
-            print(f"處理了 {player.position} 的行動: {action.action_type} {self.current_bet}")
+            logger.info(
+                "Raise/Bet processed",
+                extra={
+                    "position": player.position,
+                    "action": action.action_type,
+                    "amount": self.current_bet,
+                    "pot": self.pot,
+                },
+            )
             return
         elif action.action_type == 'AllIn':
             if player.chips <= 0:
@@ -250,18 +280,34 @@ class Table:
                 self.current_bet = new_commit
                 self._reset_queue_after_raise(player)
                 self._log_action(player, 'AllIn', new_commit)
-                print(f"處理了 {player.position} 的行動: AllIn {new_commit}")
+                logger.info(
+                    "All-in processed",
+                    extra={
+                        "position": player.position,
+                        "amount": new_commit,
+                        "pot": self.pot,
+                    },
+                )
                 return
             else:
                 self._log_action(player, 'AllIn', new_commit)
         else:
             raise ValueError("無效的行動類型。")
 
-        print(f"處理了 {player.position} 的行動: {action.action_type} {action.amount}")
+        logger.info(
+            "Action processed",
+            extra={
+                "position": player.position,
+                "action": action.action_type,
+                "amount": action.amount,
+                "pot": self.pot,
+            },
+        )
         self._advance_to_next_player()
 
     def _advance_stage(self):
         """依序進入翻牌、轉牌、河牌的下注流程"""
+        logger.info("Advancing stage", extra={"from_stage": self.current_stage})
         if self.current_stage == 'preflop':
             self._deal_community_cards(3)
             self._start_postflop_round('flop')
@@ -279,12 +325,23 @@ class Table:
 
     def _deal_community_cards(self, count: int):
         self.community_cards.extend([self.deck.pop() for _ in range(count)])
+        logger.info(
+            "Community cards dealt",
+            extra={
+                "count": count,
+                "community_cards": [c.to_model() for c in self.community_cards],
+            },
+        )
 
     def _start_preflop_action(self):
         """建立翻前的行動隊列，從 UTG 開始"""
         self.current_stage = 'preflop'
         self.action_queue = self._build_action_queue('UTG')
         self._advance_to_next_player()
+        logger.info(
+            "Preflop action started",
+            extra={"current_player": self.get_current_player().name},
+        )
 
     def _start_postflop_round(self, stage_name: str):
         """開始翻牌/轉牌/河牌階段並建立新的下注隊列"""
@@ -304,6 +361,13 @@ class Table:
             self._reveal_opponents()
             return
         self._advance_to_next_player()
+        logger.info(
+            "Postflop round started",
+            extra={
+                "stage": self.current_stage,
+                "current_player": self.get_current_player().name,
+            },
+        )
 
     def _build_action_queue(self, start_position: str) -> List[int]:
         seats = self._seat_sequence_from_position(start_position)
@@ -326,6 +390,13 @@ class Table:
             self._end_betting_round()
         else:
             self._advance_to_next_player()
+        logger.info(
+            "Queue reset after raise",
+            extra={
+                "raiser": raiser.name,
+                "queue": [self.players[i].name for i in self.action_queue],
+            },
+        )
 
     def _advance_to_next_player(self):
         while self.action_queue:
@@ -333,6 +404,10 @@ class Table:
             player = self.players[next_index]
             if player.is_active:
                 self.current_player_index = next_index
+                logger.info(
+                    "Next player",
+                    extra={"name": player.name, "position": player.position},
+                )
                 return
         self._end_betting_round()
 
@@ -347,6 +422,10 @@ class Table:
             self._reveal_opponents()
             return
         self._advance_stage()
+        logger.info(
+            "Betting round ended",
+            extra={"stage": self.current_stage, "pot": self.pot},
+        )
 
     def _post_blinds(self):
         """SB/BB 支付盲注，更新底池與當前注額"""
@@ -366,6 +445,16 @@ class Table:
             self.current_round_bets[bb_player.name] = posted
             self.current_bet = self.big_blind
             self._log_action(bb_player, 'Post BB', posted)
+        logger.info(
+            "Blinds posted",
+            extra={
+                "sb": sb_player.name if sb_player else None,
+                "bb": bb_player.name if bb_player else None,
+                "small_blind": small_blind,
+                "big_blind": self.big_blind,
+                "pot": self.pot,
+            },
+        )
 
     def _reveal_opponents(self):
         """在牌局結束時揭露對手手牌供前端顯示。"""
@@ -399,6 +488,10 @@ class Table:
             self.pot -= refund
             self.current_round_bets[winner.name] = winner_bet - refund
             self.current_bet = highest_other_bet
+            logger.info(
+                "Refunded uncalled chips",
+                extra={"winner": winner.name, "refund": refund, "pot": self.pot},
+            )
 
     def _set_hand_result(self, winner: Player | None):
         """記錄牌局結果並將底池分配給贏家。"""
@@ -416,12 +509,21 @@ class Table:
             'amount_won': amount_won,
             'description': f"{winner.position} ({winner.name}) 贏得了 ${amount_won} 底池",
         }
+        logger.info(
+            "Hand result set",
+            extra={
+                "winner": winner.name,
+                "amount_won": amount_won,
+                "position": winner.position,
+            },
+        )
 
     def _finalize_showdown(self):
         """河牌後隨機決定贏家並分配底池（簡化版）。"""
         active_players = [p for p in self.players if p.is_active]
         winner = random.choice(active_players) if active_players else None
         self._set_hand_result(winner)
+        logger.info("Showdown finalized", extra={"winner": winner.name if winner else None})
 
     def get_state_for_frontend(self) -> Dict[str, Any]:
         """將 Table 狀態轉換為 Pydantic 模型需要的字典"""

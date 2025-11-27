@@ -3,10 +3,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 from src.core.game_state import Table
+from src.core.logger import get_logger
 from src.gto_poker_simulator.strategy_logic import StrategyLogic
 from .schemas import GameState, UserAction, GTOFeedback, AIActionResponse
 
 app = FastAPI()
+logger = get_logger(__name__)
 
 # 初始化核心組件
 players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000, 
@@ -34,9 +36,18 @@ def _auto_play_until_hero():
                 'action_type': ai_decision.action_type,
                 'amount': ai_decision.amount,
             })
+            logger.info(
+                "AI action processed",
+                extra={
+                    "actor": acting_player.name,
+                    "action_type": ai_decision.action_type,
+                    "amount": ai_decision.amount,
+                    "stage": game_table.current_stage,
+                },
+            )
         except ValueError as e:
             # AI 回傳的行動無效時終止自動行動，避免陷入無限循環
-            print(f"AI action invalid: {e}")
+            logger.warning("AI action invalid", extra={"error": str(e)})
             break
 
     return actions
@@ -54,6 +65,7 @@ async def serve_index():
 async def start_new_hand():
     """啟動新的牌局"""
     game_table.start_hand()
+    logger.info("New hand started", extra={"button_index": game_table.button_index})
     _auto_play_until_hero()
     # 返回新的狀態
     return game_table.get_state_for_frontend()
@@ -61,6 +73,7 @@ async def start_new_hand():
 @app.get("/api/state", response_model=GameState)
 async def get_current_state():
     """獲取當前牌局的所有狀態數據"""
+    logger.info("State requested", extra={"stage": game_table.current_stage})
     return game_table.get_state_for_frontend()
 
 @app.post("/api/action", response_model=GTOFeedback)
@@ -74,6 +87,10 @@ async def submit_action(action: UserAction):
     try:
         game_table.process_action(action)
     except ValueError as e:
+        logger.warning(
+            "Invalid user action",
+            extra={"error": str(e), "action": action.model_dump()},
+        )
         raise HTTPException(status_code=400, detail=str(e))
 
     # 2. GTO 評估
@@ -85,6 +102,10 @@ async def submit_action(action: UserAction):
     # 3. 自動處理非 Hero 的後續行動
     _auto_play_until_hero()
 
+    logger.info(
+        "User action processed",
+        extra={"action": action.model_dump(), "stage": game_table.current_stage},
+    )
     return feedback
 
 
@@ -99,6 +120,15 @@ async def decide_ai_action():
         raise HTTPException(status_code=400, detail="目前輪到 Hero 行動，無需 AI 決策。")
 
     last_action = actions[-1]
+    logger.info(
+        "AI action returned",
+        extra={
+            "actor": last_action['actor'],
+            "action_type": last_action['action_type'],
+            "amount": last_action['amount'],
+            "stage": game_table.current_stage,
+        },
+    )
     return AIActionResponse(
         actor=last_action['actor'],
         action_type=last_action['action_type'],

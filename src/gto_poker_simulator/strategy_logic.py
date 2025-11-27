@@ -10,8 +10,12 @@ from src.api.schemas import (
 )
 from openai import OpenAI
 from dotenv import load_dotenv
+from src.core.logger import get_logger
 
 load_dotenv()
+
+
+logger = get_logger(__name__)
 
 
 class StrategyLogic:
@@ -95,11 +99,16 @@ class StrategyLogic:
 
             except Exception as e:
                 # 解析或 API 錯誤，印出來方便你在 server log 看問題
-                print("GPT error while handling GTO JSON:", e)
-                print("GPT raw reply:")
-                print(reply)
+                logger.error(
+                    "GPT error while handling GTO JSON",
+                    extra={"error": str(e), "reply": reply},
+                )
 
         # fallback 模式：AI 壞掉時至少有東西回傳
+        logger.warning(
+            "Falling back to default GTO feedback",
+            extra={"action": user_action.action_type},
+        )
         return GTOFeedback(
             user_action_correct=True,
             ev_loss_bb=0.0,
@@ -155,15 +164,29 @@ class StrategyLogic:
                     current_bet=game_state.current_bet,
                     max_commit=acting_commit + acting_stack,
                 )
+                logger.info(
+                    "AI opponent action decided",
+                    extra={
+                        "actor": acting_player.name if acting_player else None,
+                        "action_type": action_type,
+                        "amount": amount,
+                    },
+                )
                 return UserAction(action_type=action_type, amount=amount)
             except Exception as e:
-                print("GPT error while deciding opponent action:", e)
-                print("GPT raw reply:")
-                print(reply)
+                logger.error(
+                    "GPT error while deciding opponent action",
+                    extra={"error": str(e), "reply": reply},
+                )
 
         # fallback 邏輯：沒有 OpenAI 或解析失敗時使用簡單策略
         if to_call > 0:
+            logger.warning(
+                "Fallback opponent action (call)",
+                extra={"to_call": to_call},
+            )
             return UserAction(action_type="Call", amount=to_call)
+        logger.warning("Fallback opponent action (check)")
         return UserAction(action_type="Check", amount=0)
 
     def _sanitize_ai_action(
