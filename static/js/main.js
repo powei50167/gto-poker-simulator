@@ -29,7 +29,7 @@ function formatCard(card) {
     const suits = { 's': '♠', 'h': '♥', 'd': '♦', 'c': '♣' };
     const suit = suits[card.suit] || '?';
     const color = (card.suit === 'h' || card.suit === 'd') ? 'red' : 'black';
-    return `<span style="color:${color};">${card.rank}${suit}</span>`;
+    return `<span class="card-face ${color}">${card.rank}${suit}</span>`;
 }
 
 function buildHandHtml(hand) {
@@ -74,7 +74,9 @@ function positionPlayerSlots() {
 function renderGameState(state) {
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
     document.getElementById('community-cards').innerHTML =
-        state.community_cards.length ? state.community_cards.map(formatCard).join(' ') : '--';
+        state.community_cards.length
+            ? state.community_cards.map(formatCard).join('')
+            : '<span class="card-face placeholder">--</span>';
     document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
     document.getElementById('current-position').textContent = state.action_position;
     document.getElementById('hand-status').textContent = state.hand_over ? '牌局已結束，請開始新局。' : '輪到您行動。';
