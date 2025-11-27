@@ -15,7 +15,7 @@ def get_logger(name: str = "gto_poker_simulator") -> logging.Logger:
     global _LOGGER_CONFIGURED
 
     if not _LOGGER_CONFIGURED:
-        log_path = Path(__file__).resolve().parents[2] / "LOG"
+        log_path = Path(r"C:\Users\rain50167\Desktop\PROJECT\gto-poker-simulator") / "LOG"
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

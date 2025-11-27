@@ -204,7 +204,7 @@ class Table:
         logger.info(
             "Action logged",
             extra={
-                "name": player.name,
+                "player_name": player.name,
                 "position": player.position,
                 "seat_number": player.seat_number,
                 "action": action,
@@ -406,7 +406,7 @@ class Table:
                 self.current_player_index = next_index
                 logger.info(
                     "Next player",
-                    extra={"name": player.name, "position": player.position},
+                    extra={"player_name": player.name, "position": player.position},
                 )
                 return
         self._end_betting_round()
