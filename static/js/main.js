@@ -298,6 +298,12 @@ function toggleActionAvailability(disabled) {
 }
 
 async function fetchLastFeedback() {
+    const analyzeBtn = document.getElementById('analyze-last-btn');
+    if (analyzeBtn) {
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = '分析中...';
+    }
+
     try {
         const response = await fetch(`${API_BASE}/analyze_last_action`);
         const data = await response.json();
@@ -313,6 +319,8 @@ async function fetchLastFeedback() {
     } catch (error) {
         console.error('Error fetching last feedback:', error);
         alert('取得上一手 GTO 分析時發生錯誤。');
+    } finally {
+        updateAnalysisButton();
     }
 }
 
