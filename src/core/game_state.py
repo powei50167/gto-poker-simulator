@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 from typing import List, Dict, Any
 from src.api.schemas import UserAction
 from src.core.logger import get_logger
@@ -53,6 +54,8 @@ class Table:
     POSITIONS = ['🅱️BTN', 'SB', 'BB', 'UTG', 'MP', 'CO']
     HERO_SEAT = 4
     SEAT_ORDER = [1, 2, 3, 4, 5, 6]
+    RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
+    RANK_VALUE = {rank: idx for idx, rank in enumerate(RANK_ORDER)}
 
     def __init__(self, players_data: Dict[str, int], big_blind: int = 100):
         self.big_blind = big_blind
@@ -539,11 +542,121 @@ class Table:
         )
 
     def _finalize_showdown(self):
-        """河牌後隨機決定贏家並分配底池（簡化版）。"""
+        """根據公共牌與手牌強度決定贏家。"""
         active_players = [p for p in self.players if p.is_active]
-        winner = random.choice(active_players) if active_players else None
+        if not active_players:
+            self._set_hand_result(None)
+            logger.info("Showdown finalized", extra={"winner": None})
+            return
+
+        best_strength: tuple | None = None
+        winners: List[Player] = []
+
+        for player in active_players:
+            strength = self._evaluate_hand_strength(player)
+            if best_strength is None or strength > best_strength:
+                best_strength = strength
+                winners = [player]
+            elif strength == best_strength:
+                winners.append(player)
+
+        # 若有平手情況，選擇座位號較小的玩家作為贏家以維持一致性
+        winner = sorted(winners, key=lambda p: p.seat_number)[0]
         self._set_hand_result(winner)
-        logger.info("Showdown finalized", extra={"winner": winner.name if winner else None})
+        logger.info(
+            "Showdown finalized",
+            extra={
+                "winner": winner.name if winner else None,
+                "winning_hand": best_strength,
+            },
+        )
+
+    def _evaluate_hand_strength(self, player: Player) -> tuple:
+        """回傳用於比較的牌型強度元組 (依賴德州撲克 7 張牌最佳牌型)。"""
+        cards = player.hand + self.community_cards
+        rank_values = [self.RANK_VALUE[c.rank] for c in cards]
+        rank_counter = Counter(rank_values)
+
+        suits: Dict[str, List[int]] = {}
+        for c in cards:
+            suits.setdefault(c.suit, []).append(self.RANK_VALUE[c.rank])
+
+        flush_suit = next((s for s, ranks in suits.items() if len(ranks) >= 5), None)
+        flush_ranks = sorted(suits.get(flush_suit, []), reverse=True)
+
+        straight_high = self._find_straight_high(rank_values)
+        straight_flush_high = self._find_straight_high(flush_ranks) if flush_suit else None
+
+        if straight_flush_high is not None:
+            return (8, straight_flush_high)
+
+        four_kind = [r for r, cnt in rank_counter.items() if cnt == 4]
+        if four_kind:
+            quad_rank = max(four_kind)
+            kicker = max(r for r in rank_values if r != quad_rank)
+            return (7, quad_rank, kicker)
+
+        trips = sorted([r for r, cnt in rank_counter.items() if cnt == 3], reverse=True)
+        pairs = sorted([r for r, cnt in rank_counter.items() if cnt == 2], reverse=True)
+
+        if trips and (pairs or len(trips) > 1):
+            top_trip = trips[0]
+            top_pair = trips[1] if len(trips) > 1 else pairs[0]
+            return (6, top_trip, top_pair)
+
+        if flush_suit:
+            top_five_flush = flush_ranks[:5]
+            return (5, *top_five_flush)
+
+        if straight_high is not None:
+            return (4, straight_high)
+
+        if trips:
+            top_trip = trips[0]
+            kickers = self._top_kickers(rank_values, exclude=[top_trip], count=2)
+            return (3, top_trip, *kickers)
+
+        if len(pairs) >= 2:
+            top_two_pairs = pairs[:2]
+            kicker = self._top_kickers(rank_values, exclude=top_two_pairs, count=1)[0]
+            return (2, *top_two_pairs, kicker)
+
+        if pairs:
+            pair_rank = pairs[0]
+            kickers = self._top_kickers(rank_values, exclude=[pair_rank], count=3)
+            return (1, pair_rank, *kickers)
+
+        high_cards = self._top_kickers(rank_values, exclude=[], count=5)
+        return (0, *high_cards)
+
+    def _find_straight_high(self, rank_values: List[int]) -> int | None:
+        """回傳順子的最高牌值 (無順子則為 None)。"""
+        unique = list(set(rank_values))
+        if self.RANK_VALUE['A'] in unique:
+            unique.append(-1)  # 處理 A 作為 1 的順子 (A-2-3-4-5)
+        unique = sorted(unique)
+
+        run = 1
+        best_high: int | None = None
+        for i in range(1, len(unique)):
+            if unique[i] - unique[i - 1] == 1:
+                run += 1
+                if run >= 5:
+                    best_high = unique[i]
+            else:
+                run = 1
+        return best_high
+
+    def _top_kickers(self, rank_values: List[int], exclude: List[int], count: int) -> List[int]:
+        """取得排除特定牌值後最高的 kicker 列表。"""
+        filtered = [r for r in sorted(rank_values, reverse=True) if r not in exclude]
+        kickers: List[int] = []
+        for r in filtered:
+            if r not in kickers:
+                kickers.append(r)
+            if len(kickers) >= count:
+                break
+        return kickers
 
     def get_state_for_frontend(self) -> Dict[str, Any]:
         """將 Table 狀態轉換為 Pydantic 模型需要的字典"""
