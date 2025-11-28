@@ -5,7 +5,7 @@ services:
     build: .
     container_name: gto_poker_simulator
     ports:
-      - "8088:8088"
+      - "9000:9000"
     env_file:
       - .env
     volumes:
@@ -13,6 +13,6 @@ services:
       - ./static:/app/static
       
     command: >
-      sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 8088 --reload"
+      sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 9000 --reload"
 
 

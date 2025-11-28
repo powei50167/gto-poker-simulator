@@ -22,8 +22,8 @@ COPY ./static ./static
 ENV PYTHONPATH=/app/src
 
 # 對外開放 port
-EXPOSE 8088
+EXPOSE 9000
 
 # 啟動 FastAPI
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8088"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "9000"]
 
