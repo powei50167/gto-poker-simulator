@@ -69,6 +69,12 @@ class AIActionResponse(BaseModel):
     action_type: str
     amount: int
 
+
+class ActionProcessResponse(BaseModel):
+    """用戶行動提交後的確認回應"""
+    success: bool
+    detail: str
+
 class GTOActionData(BaseModel):
     """GTO 建議的單個行動數據"""
     action: str
