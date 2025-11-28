@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Optional
+from typing import List
 from src.api.schemas import (
     GameState,
     UserAction,
@@ -19,11 +19,6 @@ logger = get_logger(__name__, log_type="openai")
 
 
 class StrategyLogic:
-    LEGAL_ACTIONS = ["Check", "Call", "Raise", "Fold", "AllIn"]
-    FREQ_TOLERANCE = 0.05
-    EV_LOSS_TOLERANCE = 1.0
-    MAX_RETRY = 2
-
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.org = os.getenv("OPENAI_ORG")
@@ -34,14 +29,41 @@ class StrategyLogic:
             self.client = None
 
     def evaluate_user_action(self, game_state: GameState, user_action: UserAction) -> GTOFeedback:
+        # 找出 acting player 與手牌
         players = game_state.players
         action_position = game_state.action_position
         acting_player = next((p for p in players if p.position == action_position), None)
         hand = acting_player.hand if acting_player else []
         hero_stack = acting_player.chips if acting_player else 0
 
+        # 組合分析描述
         state_desc = self._build_state_description(game_state, hand)
-        current_call_amount = max(game_state.current_bet, 0)
+
+        # 要求 GPT 回傳 JSON（強調不要使用 ```）
+        prompt = f"""
+你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因：
+
+牌桌資訊: {state_desc}, 玩家行動：{user_action.action_type}, 下注金額：{user_action.amount}, 剩餘籌碼:{hero_stack} 
+
+請以「純 JSON」格式輸出以下欄位（不要加任何 ``` 符號，也不要加多餘說明文字）：
+
+{{
+  "user_action_correct": true 或 false,
+  "ev_loss_bb": 數字,
+  "gto_matrix": [
+    {{"action": "Check", "frequency": 0~1, "ev_bb": 數字}},
+    {{"action": "Call", "frequency": 0~1, "ev_bb": 數字}},
+    {{"action": "Raise", "frequency": 0~1, "ev_bb": 數字}},
+    {{"action": "Fold", "frequency": 0~1, "ev_bb": 數字}}
+  ],
+  "explanation": "策略說明文字"
+}}
+
+請務必保證這是一段可以被 Python json.loads() 解析的合法 JSON。
+只輸出 JSON，本身不要任何註解、markdown 或其他文字。
+"""
+
+        reply = ""  # 先定義，避免例外時變成未定義變數
 
         logger.info(
             "OpenAI prompt for user action evaluation",
@@ -54,43 +76,53 @@ class StrategyLogic:
             },
         )
 
-        numeric_data: Optional[dict] = None
-        explanation_text = ""
-
         if self.api_key and self.client:
-            numeric_data = self._generate_numeric_feedback(
-                game_state=game_state,
-                user_action=user_action,
-                hero_stack=hero_stack,
-                state_desc=state_desc,
-                current_call_amount=current_call_amount,
-            )
-
-            if numeric_data:
-                explanation_text = self._generate_explanation(
-                    numeric_data=numeric_data,
-                    state_desc=state_desc,
-                    user_action=user_action,
+            try:
+                response = self.client.responses.create(
+                    model="gpt-4o-mini",
+                    input=[
+                        {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
+                        {"role": "user", "content": prompt}
+                    ]
                 )
-        else:
-            logger.warning("OpenAI client not configured; using fallback feedback")
 
-        if numeric_data:
-            gto_matrix = [
-                GTOActionData(
-                    action=item["action"],
-                    frequency=item["frequency"],
-                    ev_bb=item["ev_bb"],
+                # 這裡依照你 SDK 的用法，如果不是 output_text 可以換成對應欄位
+                reply = response.output_text
+
+                logger.info(
+                    "OpenAI response for user action evaluation",
+                    extra={
+                        "【AI生成內容】": reply,
+                        "stage": game_state.current_stage,
+                        "action": user_action.model_dump(),
+                    },
                 )
-                for item in numeric_data.get("gto_matrix", [])
-            ]
 
-            return GTOFeedback(
-                user_action_correct=numeric_data.get("user_action_correct", True),
-                ev_loss_bb=numeric_data.get("ev_loss_bb", 0.0),
-                gto_matrix=gto_matrix,
-                explanation=explanation_text or "AI 生成的說明缺失。",
-            )
+                data = self._parse_json_reply(reply)
+
+                # 組裝 gto_matrix
+                gto_matrix = [
+                    GTOActionData(
+                        action=item["action"],
+                        frequency=item["frequency"],
+                        ev_bb=item["ev_bb"]
+                    )
+                    for item in data.get("gto_matrix", [])
+                ]
+
+                return GTOFeedback(
+                    user_action_correct=data.get("user_action_correct", True),
+                    ev_loss_bb=data.get("ev_loss_bb", 0.0),
+                    gto_matrix=gto_matrix,
+                    explanation=data.get("explanation", "")
+                )
+
+            except Exception as e:
+                # 解析或 API 錯誤，印出來方便你在 server log 看問題
+                logger.error(
+                    "GPT error while handling GTO JSON",
+                    extra={"error": str(e), "reply": reply},
+                )
 
         # fallback 模式：AI 壞掉時至少有東西回傳
         logger.warning(
@@ -102,283 +134,11 @@ class StrategyLogic:
             ev_loss_bb=0.0,
             gto_matrix=[
                 GTOActionData(action="Check", frequency=0, ev_bb=0),
-                GTOActionData(action="Call", frequency=0, ev_bb=0),
                 GTOActionData(action="Raise", frequency=0, ev_bb=0),
                 GTOActionData(action="Fold", frequency=0, ev_bb=0),
-                GTOActionData(action="AllIn", frequency=0, ev_bb=0),
             ],
             explanation="AI Agent 異常或回傳非法 JSON，系統回傳預設資料。",
         )
-
-    def _generate_numeric_feedback(
-        self,
-        game_state: GameState,
-        user_action: UserAction,
-        hero_stack: int,
-        state_desc: str,
-        current_call_amount: int,
-    ) -> Optional[dict]:
-        """
-        第一階段：要求模型依照固定規則回傳純 JSON 數值，並驗證合法性。
-        若檢查失敗會帶著錯誤訊息重試。
-        """
-
-        reply = ""
-        normalized_user_action = self._normalize_action_for_matrix(
-            user_action.action_type, current_call_amount
-        )
-        retry_reason = ""
-
-        for attempt in range(self.MAX_RETRY + 1):
-            prompt = self._build_numeric_prompt(
-                state_desc=state_desc,
-                user_action=user_action,
-                hero_stack=hero_stack,
-                current_call_amount=current_call_amount,
-                normalized_user_action=normalized_user_action,
-                retry_reason=retry_reason,
-            )
-
-            try:
-                response = self.client.responses.create(
-                    model="gpt-4o-mini",
-                    input=[
-                        {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                reply = response.output_text
-                logger.info(
-                    "OpenAI response for numeric GTO feedback",
-                    extra={
-                        "attempt": attempt + 1,
-                        "reply": reply,
-                        "stage": game_state.current_stage,
-                    },
-                )
-
-                data = self._parse_json_reply(reply)
-                errors = self._validate_numeric_data(
-                    data=data,
-                    current_call_amount=current_call_amount,
-                    normalized_user_action=normalized_user_action,
-                )
-
-                if not errors:
-                    return data
-
-                retry_reason = (
-                    "你輸出的內容未通過以下檢查，請修正後重新輸出純 JSON："
-                    + " ; ".join(errors)
-                )
-            except Exception as e:
-                retry_reason = f"解析或模型回應錯誤：{str(e)}"
-                logger.error(
-                    "GPT error while handling numeric GTO JSON",
-                    extra={"error": str(e), "reply": reply},
-                )
-
-        logger.error(
-            "Exceeded retry limit for numeric GTO feedback",
-            extra={"reason": retry_reason, "reply": reply},
-        )
-        return None
-
-    def _generate_explanation(
-        self,
-        numeric_data: dict,
-        state_desc: str,
-        user_action: UserAction,
-    ) -> str:
-        """第二階段：使用經驗證的數值請模型生成一致的說明。"""
-
-        payload = json.dumps(numeric_data, ensure_ascii=False)
-        instruction = (
-            "以下是已驗證的數值，請直接據此撰寫中文說明，不得修改任何數值。"
-            "說明需呼應 user_action_correct 與 ev_loss_bb：若為 true，強調選擇仍可接受；"
-            "若為 false，要指出該行動在 EV 上明顯劣於其它選項。請引用最高 EV 行動、"
-            "玩家行動的 EV 以及大約的 EV 損失。"
-        )
-
-        prompt = (
-            f"牌局資訊：{state_desc}\n"
-            f"玩家行動：{user_action.action_type}，金額：{user_action.amount}\n"
-            f"已驗證數值 JSON：{payload}"
-        )
-
-        try:
-            response = self.client.responses.create(
-                model="gpt-4o-mini",
-                input=[
-                    {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
-                    {"role": "user", "content": instruction},
-                    {"role": "user", "content": prompt},
-                ],
-            )
-            explanation = response.output_text.strip()
-            logger.info(
-                "OpenAI response for explanation",
-                extra={"explanation": explanation},
-            )
-            return explanation
-        except Exception as e:
-            logger.error(
-                "GPT error while generating explanation",
-                extra={"error": str(e), "payload": payload},
-            )
-            return "AI 說明產生失敗，請參考數值結果。"
-
-    def _build_numeric_prompt(
-        self,
-        state_desc: str,
-        user_action: UserAction,
-        hero_stack: int,
-        current_call_amount: int,
-        normalized_user_action: str,
-        retry_reason: str = "",
-    ) -> str:
-        """建立要求模型回傳純 JSON 的提示，包含法律動作限制與檢核規則。"""
-
-        illegal_check_notice = (
-            "注意：桌上已有人下注 (current_call_amount > 0)，Check 不是合法動作，不可以出現。"
-            if current_call_amount > 0
-            else ""
-        )
-
-        error_feedback = f"先前錯誤：{retry_reason}\n" if retry_reason else ""
-
-        schema_text = json.dumps(
-            {
-                "type": "object",
-                "properties": {
-                    "user_action_correct": {"type": "boolean"},
-                    "ev_loss_bb": {"type": "number"},
-                    "gto_matrix": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "action": {"type": "string"},
-                                "frequency": {"type": "number"},
-                                "ev_bb": {"type": "number"},
-                            },
-                            "required": ["action", "frequency", "ev_bb"],
-                        },
-                    },
-                },
-                "required": ["user_action_correct", "ev_loss_bb", "gto_matrix"],
-            },
-            ensure_ascii=False,
-        )
-
-        instructions = f"""
-{error_feedback}你是一位德州撲克6人現金桌 GTO 教練，請只回傳可以被 json.loads 解析的合法 JSON，不要加入 ``` 或說明。
-
-1) legal_actions: {self.LEGAL_ACTIONS}。gto_matrix 只能出現這些動作。{illegal_check_notice}
-2) 先在 gto_matrix 中列出每個合法行動的 frequency (0~1) 及 ev_bb，frequency 總和約為 1。
-3) 找出 best_ev_bb = 所有行動 ev_bb 的最大值；找出玩家實際行動 ({normalized_user_action}) 的 ev_user。
-4) 設定 ev_loss_bb = best_ev_bb - ev_user。
-5) 規則：若 ev_loss_bb ≤ 30 則 user_action_correct = true，否則 false。不要用「請你評估」，直接依規則填入。
-6) 僅輸出 JSON 數值，不要寫說明文字，格式必須符合以下 JSON Schema：{schema_text}
-"""
-
-        context = (
-            f"牌桌資訊：{state_desc}\n玩家行動：{user_action.action_type}，下注金額："
-            f"{user_action.amount}，剩餘籌碼：{hero_stack}\n"
-            f"current_call_amount：{current_call_amount}\n"
-            "請先決定數值，再輸出 JSON。"
-        )
-
-        return instructions + "\n" + context
-
-    def _validate_numeric_data(
-        self,
-        data: dict,
-        current_call_amount: int,
-        normalized_user_action: str,
-    ) -> List[str]:
-        errors: List[str] = []
-        gto_matrix = data.get("gto_matrix")
-        if not isinstance(gto_matrix, list) or not gto_matrix:
-            errors.append("gto_matrix 缺失或不是陣列")
-            return errors
-
-        freq_sum = 0.0
-        best_ev = None
-        user_ev = None
-
-        for item in gto_matrix:
-            action = item.get("action")
-            frequency = item.get("frequency", 0)
-            ev_bb = item.get("ev_bb")
-
-            if action not in self.LEGAL_ACTIONS:
-                errors.append(f"出現非法動作: {action}")
-                continue
-
-            if current_call_amount > 0 and action == "Check":
-                errors.append("current_call_amount > 0 時仍出現 Check")
-
-            try:
-                freq_sum += float(frequency)
-            except (TypeError, ValueError):
-                errors.append(f"frequency 無法轉為數值: {frequency}")
-
-            try:
-                ev_value = float(ev_bb)
-            except (TypeError, ValueError):
-                errors.append(f"ev_bb 無法轉為數值: {ev_bb}")
-                continue
-
-            if best_ev is None or ev_value > best_ev:
-                best_ev = ev_value
-
-            if action == normalized_user_action:
-                user_ev = ev_value
-
-        if abs(freq_sum - 1.0) > self.FREQ_TOLERANCE:
-            errors.append("frequency 總和未接近 1")
-
-        if best_ev is None or user_ev is None:
-            errors.append("找不到最佳 EV 或玩家行動的 EV")
-            return errors
-
-        expected_loss = best_ev - user_ev
-        reported_loss = data.get("ev_loss_bb")
-        try:
-            reported_loss_val = float(reported_loss)
-        except (TypeError, ValueError):
-            errors.append("ev_loss_bb 不是數值")
-            reported_loss_val = None
-
-        if reported_loss_val is not None:
-            if abs(reported_loss_val - expected_loss) > self.EV_LOSS_TOLERANCE:
-                errors.append("ev_loss_bb 與 best_ev_bb - ev_user 不符")
-
-        expected_correct = expected_loss <= 30
-        if data.get("user_action_correct") != expected_correct:
-            errors.append("user_action_correct 與規則 (ev_loss_bb ≤ 30) 不符")
-
-        return errors
-
-    def _normalize_action_for_matrix(self, action_type: str, current_call_amount: int) -> str:
-        lowered = action_type.lower()
-        mapping = {
-            "call": "Call",
-            "check": "Check",
-            "bet": "Raise",
-            "raise": "Raise",
-            "fold": "Fold",
-            "allin": "AllIn",
-            "all-in": "AllIn",
-            "all_in": "AllIn",
-        }
-        normalized = mapping.get(lowered, "Call")
-        if current_call_amount > 0 and normalized == "Check":
-            return "Call"
-        if current_call_amount == 0 and normalized == "Call":
-            return "Check"
-        return normalized
 
     def decide_opponent_action(self, game_state: GameState) -> UserAction:
         """使用 OpenAI 決策目前行動玩家（非 Hero）的行動"""
