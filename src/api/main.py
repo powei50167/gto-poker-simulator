@@ -5,7 +5,13 @@ from pathlib import Path
 from src.core.game_state import Table
 from src.core.logger import get_logger
 from src.gto_poker_simulator.strategy_logic import StrategyLogic
-from .schemas import GameState, UserAction, GTOFeedback, AIActionResponse
+from .schemas import (
+    GameState,
+    UserAction,
+    GTOFeedback,
+    AIActionResponse,
+    ActionProcessResponse,
+)
 
 app = FastAPI()
 logger = get_logger(__name__)
@@ -15,6 +21,7 @@ players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000,
                 'Player4': 10000, 'Player5': 10000, 'Player6': 10000}
 game_table = Table(players_init, big_blind=100)
 gto_logic = StrategyLogic()
+last_user_action_context: dict | None = None
 
 
 def _auto_play_until_hero():
@@ -64,7 +71,9 @@ async def serve_index():
 @app.post("/api/new_hand")
 async def start_new_hand():
     """啟動新的牌局"""
+    global last_user_action_context
     game_table.start_hand()
+    last_user_action_context = None
     logger.info("New hand started", extra={"button_index": game_table.button_index})
     _auto_play_until_hero()
     # 返回新的狀態
@@ -76,14 +85,14 @@ async def get_current_state():
     logger.info("State requested", extra={"stage": game_table.current_stage})
     return game_table.get_state_for_frontend()
 
-@app.post("/api/action", response_model=GTOFeedback)
+@app.post("/api/action", response_model=ActionProcessResponse)
 async def submit_action(action: UserAction):
-    """用戶提交行動，並返回 GTO 評估"""
-    
-    # 獲取當前玩家的手牌和情境
+    """用戶提交行動，僅處理狀態更新並保留分析上下文"""
+
+    global last_user_action_context
+
     current_state = GameState(**game_table.get_state_for_frontend())
 
-    # 1. 遊戲狀態更新
     try:
         game_table.process_action(action)
     except ValueError as e:
@@ -93,20 +102,18 @@ async def submit_action(action: UserAction):
         )
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 2. GTO 評估
-    feedback = gto_logic.evaluate_user_action(
-        game_state=current_state,
-        user_action=action
-    )
+    last_user_action_context = {"game_state": current_state, "user_action": action}
 
-    # 3. 自動處理非 Hero 的後續行動
     _auto_play_until_hero()
 
     logger.info(
         "User action processed",
         extra={"action": action.model_dump(), "stage": game_table.current_stage},
     )
-    return feedback
+    return ActionProcessResponse(
+        success=True,
+        detail="行動已提交，點擊分析按鈕查看上一手 GTO 評估。",
+    )
 
 
 @app.post("/api/ai_action", response_model=AIActionResponse)
@@ -134,3 +141,23 @@ async def decide_ai_action():
         action_type=last_action['action_type'],
         amount=last_action['amount'],
     )
+
+
+@app.get("/api/analyze_last_action", response_model=GTOFeedback)
+async def analyze_last_action():
+    """按需對上一手用戶行動進行 GTO 分析"""
+
+    if not last_user_action_context:
+        raise HTTPException(status_code=400, detail="尚未有可分析的上一手行動。")
+
+    feedback = gto_logic.evaluate_user_action(
+        game_state=last_user_action_context["game_state"],
+        user_action=last_user_action_context["user_action"],
+    )
+
+    logger.info(
+        "On-demand GTO analysis generated",
+        extra={"stage": game_table.current_stage},
+    )
+
+    return feedback

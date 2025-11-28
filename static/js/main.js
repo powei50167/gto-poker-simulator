@@ -2,6 +2,8 @@
 
 const API_BASE = '/api';
 
+let lastAnalysisAvailable = false;
+
 // 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
 const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
 
@@ -36,6 +38,19 @@ function buildHandHtml(hand) {
     if (!hand || !hand.length) return '';
     const cards = hand.map(card => `<div class="card-slot small">${formatCard(card)}</div>`).join('');
     return `<div class="player-hand">${cards}</div>`;
+}
+
+function resetFeedbackDisplay() {
+    document.getElementById('feedback-result').innerHTML = '';
+    document.getElementById('gto-matrix-body').innerHTML = '';
+    document.getElementById('error-explanation').textContent = '';
+}
+
+function updateAnalysisButton() {
+    const analyzeBtn = document.getElementById('analyze-last-btn');
+    if (!analyzeBtn) return;
+    analyzeBtn.disabled = !lastAnalysisAvailable;
+    analyzeBtn.textContent = lastAnalysisAvailable ? '分析上一手 GTO' : '尚無可分析行動';
 }
 
 // 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
@@ -282,6 +297,25 @@ function toggleActionAvailability(disabled) {
     });
 }
 
+async function fetchLastFeedback() {
+    try {
+        const response = await fetch(`${API_BASE}/analyze_last_action`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(`錯誤: ${data.detail || '無法取得上一手分析。'}`);
+            return;
+        }
+
+        renderFeedback(data);
+        lastAnalysisAvailable = false;
+        updateAnalysisButton();
+    } catch (error) {
+        console.error('Error fetching last feedback:', error);
+        alert('取得上一手 GTO 分析時發生錯誤。');
+    }
+}
+
 async function postAction(actionType, amount = 0) {
     const userAction = { action_type: actionType, amount: amount };
     toggleActionAvailability(true);
@@ -300,7 +334,8 @@ async function postAction(actionType, amount = 0) {
             return;
         }
 
-        renderFeedback(data);
+        lastAnalysisAvailable = true;
+        updateAnalysisButton();
 
     } catch (error) {
         console.error("Error submitting action:", error);
@@ -312,11 +347,11 @@ async function postAction(actionType, amount = 0) {
 
 async function startNewHand() {
      try {
-        // 重置反饋區
-        document.getElementById('feedback-result').innerHTML = '';
-        document.getElementById('gto-matrix-body').innerHTML = '';
-        document.getElementById('error-explanation').textContent = '';
-        
+        // 重置反饋區與上一手分析狀態
+        resetFeedbackDisplay();
+        lastAnalysisAvailable = false;
+        updateAnalysisButton();
+
         const response = await fetch(`${API_BASE}/new_hand`, { method: 'POST' });
         const state = await response.json();
         renderGameState(state);
@@ -331,6 +366,7 @@ async function startNewHand() {
 // --- 初始化和事件監聽 (保持不變) ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
+    document.getElementById('analyze-last-btn').addEventListener('click', fetchLastFeedback);
 
     // 處理 Fold 和 Call/Check
     document.getElementById('action-buttons').addEventListener('click', (event) => {
@@ -373,6 +409,8 @@ document.addEventListener('DOMContentLoaded', () => {
         postAction('AllIn');
     });
 
+    updateAnalysisButton();
+
     // 首次載入時啟動新牌局
-    // startNewHand(); 
+    // startNewHand();
 });
