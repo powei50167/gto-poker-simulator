@@ -9,10 +9,10 @@ services:
     env_file:
       - .env
     volumes:
-      - ./src/gto_poker_simulator/frontend/static:/app/frontend/static
       - ./src:/app/src
+      - ./static:/app/static
       
     command: >
-      sh -c "PYTHONPATH=src uvicorn gto_poker_simulator.main:app --host 0.0.0.0 --port 8088 --reload"
+      sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 8088 --reload"
 
 

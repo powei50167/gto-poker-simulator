@@ -14,13 +14,16 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
  && poetry install --no-interaction --no-ansi --no-root
 
+# 複製應用程式與靜態資源
 COPY ./src ./src
+COPY ./static ./static
 
+# FastAPI 專案入口點
 ENV PYTHONPATH=/app/src
 
 # 對外開放 port
 EXPOSE 8088
 
 # 啟動 FastAPI
-CMD ["uvicorn", "gto_poker_simulator.main:app", "--host", "0.0.0.0", "--port", "8088"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8088"]
 
