@@ -39,14 +39,45 @@ class StrategyLogic:
         # 組合分析描述
         state_desc = self._build_state_description(game_state, hand)
 
+        # 決定合法行動（避免模型亂給 UTG Check 類錯誤）
+        stage = game_state.current_stage
+        position = action_position
+
+        # Preflop 行動規則
+        if stage == "preflop":
+            if position in ["UTG", "HJ", "CO", "BTN"]:  # 第一輪非盲注不能 check
+                legal_actions = ["Call", "Raise", "Fold"]
+            elif position == "SB":
+                legal_actions = ["Call", "Raise", "Fold"]
+            elif position == "BB":
+                # BB 在 preflop 才能 check
+                legal_actions = ["Check", "Call", "Raise", "Fold"]
+            else:
+                legal_actions = ["Call", "Raise", "Fold"]
+        else:
+            # flop/turn/river 都能 Check
+            legal_actions = ["Check", "Call", "Raise", "Fold"]
+
+        legal_action_str = ", ".join([f'"{a}"' for a in legal_actions])
+        
         # 要求 GPT 回傳 JSON（強調不要使用 ```）
         prompt = f"""
-你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因：
+你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因，並給出各行動的 frequency 與 ev_bb。
 
-牌桌資訊: {state_desc}, 玩家行動：{user_action.action_type}, 下注金額：{user_action.amount}, 剩餘籌碼:{hero_stack} 
+牌桌資訊: {state_desc}, 玩家行動：{user_action.action_type}, 下注金額：{user_action.amount}, 剩餘籌碼:{hero_stack}
 
-請以「純 JSON」格式輸出以下欄位（不要加任何 ``` 符號，也不要加多餘說明文字）：
+⚠️ 請務必遵守以下規則：
 
+- 僅能使用「此局面合法的行動」：{legal_action_str}
+- preflop 若只有大小盲（POT=150）且尚未有人加注，合法行動為：
+  - Call（補到大盲額度）
+  - Raise（Open Raise）
+  - Fold
+  - Check 不合法，請 frequency=0、ev_bb=0。
+- 若某行動不在 {legal_action_str} 中，必須將 frequency=0 且 ev_bb=0。
+- 必須回傳可被 json.loads() 解析的純 JSON。
+- 不得加入 ```、額外評論、格式化語法或 JSON 外內容。
+請輸出以下格式（務必為合法 JSON）：
 {{
   "user_action_correct": true 或 false,
   "ev_loss_bb": 數字,
@@ -56,11 +87,12 @@ class StrategyLogic:
     {{"action": "Raise", "frequency": 0~1, "ev_bb": 數字}},
     {{"action": "Fold", "frequency": 0~1, "ev_bb": 數字}}
   ],
-  "explanation": "策略說明文字"
+  "explanation": " GTO 教練建議說明文字"
 }}
 
-請務必保證這是一段可以被 Python json.loads() 解析的合法 JSON。
-只輸出 JSON，本身不要任何註解、markdown 或其他文字。
+注意：
+- 若某行動在此局面不合法，請 frequency=0, ev_bb=0。
+- 確保 JSON 能用 Python json.loads() 成功解析。
 """
 
         reply = ""  # 先定義，避免例外時變成未定義變數
@@ -79,7 +111,7 @@ class StrategyLogic:
         if self.api_key and self.client:
             try:
                 response = self.client.responses.create(
-                    model="gpt-4o-mini",
+                    model="gpt-5.1",
                     input=[
                         {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
                         {"role": "user", "content": prompt}
