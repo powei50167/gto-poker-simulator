@@ -30,8 +30,8 @@
                 <p><span id="hand-status">輪到您行動。</span> (<span id="current-position">--</span>)</p>
                 <div id="action-buttons">
                     <button class="action-btn" data-type="Check" id="check-btn">過牌 (Check)</button>
-                    <button class="action-btn" data-type="Fold">棄牌 (Fold)</button>
                     <button class="action-btn" data-type="Call" id="call-btn">跟注 ($0)</button>
+                    <button class="action-btn" data-type="Fold" id="Fold-btn">棄牌 (Fold)</button>
                     <button class="action-btn" data-type="AllIn" id="allin-btn">全下 (All-in)</button>
                 </div>
                 
@@ -53,7 +53,7 @@
                 <div id="gto-matrix-display">
                     <h4>GTO 建議行動</h4>
                     <table>
-                        <thead><tr><th>行動</th><th>頻率</th><th>EV (籌碼)</th></tr></thead>
+                        <thead><tr><th>行動</th><th>頻率</th><th>EV (BB)</th></tr></thead>
                         <tbody id="gto-matrix-body">
                         </tbody>
                     </table>

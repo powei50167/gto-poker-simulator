@@ -245,6 +245,11 @@ button:disabled {
     min-width: 130px;
 }
 
+#Fold-btn {
+    background: linear-gradient(135deg, #332525, #3b2727);
+    color: #fff5f5;
+}
+
 #allin-btn {
     background: linear-gradient(135deg, #f4473b, #b1120a);
     color: #fff5f5;
