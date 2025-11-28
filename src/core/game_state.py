@@ -233,6 +233,9 @@ class Table:
         if action.action_type == 'Fold':
             player.fold()
             self._log_action(player, 'Fold', 0)
+            if player.name.lower() == 'hero':
+                self._end_hand_on_hero_fold()
+                return
         elif action.action_type == 'Check':
             if to_call != 0:
                 raise ValueError("無法過牌，必須至少跟注當前下注。")
@@ -425,6 +428,23 @@ class Table:
         logger.info(
             "Betting round ended",
             extra={"stage": self.current_stage, "pot": self.pot},
+        )
+
+    def _end_hand_on_hero_fold(self):
+        """Hero 棄牌時直接結束牌局並發放底池。"""
+        active_opponents = [p for p in self.players if p.is_active and p.name.lower() != 'hero']
+        winner = active_opponents[0] if active_opponents else None
+        self._refund_uncalled_chips(winner)
+        self.hand_over = True
+        self.current_stage = 'showdown'
+        self._set_hand_result(winner)
+        self._reveal_opponents()
+        logger.info(
+            "Hand ended due to hero fold",
+            extra={
+                "winner": winner.name if winner else None,
+                "pot": self.pot,
+            },
         )
 
     def _post_blinds(self):
