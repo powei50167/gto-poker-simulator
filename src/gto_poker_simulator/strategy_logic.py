@@ -37,7 +37,9 @@ class StrategyLogic:
         hero_stack = acting_player.chips if acting_player else 0
 
         # 組合分析描述
-        state_desc = self._build_state_description(game_state, hand)
+        state_desc = self._build_state_description(
+            game_state, hand, include_action_log=True
+        )
 
         # 決定合法行動（避免模型亂給 UTG Check 類錯誤）
         stage = game_state.current_stage
@@ -343,14 +345,45 @@ class StrategyLogic:
         # ③ 丟給 json.loads 解析
         return json.loads(json_str)
 
-    def _build_state_description(self, game_state: GameState, hand: List[CardModel]) -> str:
+    def _build_state_description(
+        self,
+        game_state: GameState,
+        hand: List[CardModel],
+        include_action_log: bool = False,
+    ) -> str:
         board = " ".join([f"{c.rank}{c.suit}" for c in game_state.community_cards]) or "無"
         cards = " ".join([f"{c.rank}{c.suit}" for c in hand]) or "未知"
+        action_log_desc = ""
+        if include_action_log and getattr(game_state, "action_log", None):
+            formatted_actions = []
+            for log in game_state.action_log:
+                amount = getattr(log, "amount", None)
+                if amount is None and isinstance(log, dict):
+                    amount = log.get("amount", 0)
+                amount_note = f" {amount}" if amount else ""
+                stage = getattr(log, "stage", None) or (
+                    log.get("stage") if isinstance(log, dict) else ""
+                )
+                position = getattr(log, "position", None) or (
+                    log.get("position") if isinstance(log, dict) else ""
+                )
+                name = getattr(log, "name", None) or (
+                    log.get("name") if isinstance(log, dict) else ""
+                )
+                action = getattr(log, "action", None) or (
+                    log.get("action") if isinstance(log, dict) else ""
+                )
+                formatted_actions.append(
+                    f"[{stage}] {position} {name}: {action}{amount_note}"
+                )
+            action_log_desc = "歷史行動：" + " | ".join(formatted_actions) + "\n"
+
         desc = (
             f"目前底池：{game_state.pot_size}\n"
             f"公共牌：{board}\n"
             f"手牌：{cards}\n"
             f"行動位置：{game_state.action_position}\n"
-            f"當前跟注金額：{game_state.current_bet}"
+            f"當前跟注金額：{game_state.current_bet}\n"
+            f"{action_log_desc}"
         )
         return desc
