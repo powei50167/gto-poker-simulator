@@ -381,6 +381,55 @@ button:disabled {
     color: #9ad1ff;
 }
 
+#feedback-panel .card {
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+#feedback-panel .section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 12px;
+    color: #8ab6ff;
+    margin: 0 0 2px 0;
+}
+
+.matrix-note {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.ghost-btn {
+    background: transparent;
+    border: 1px solid #4a76d1;
+    color: #b9d1ff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.ghost-btn:hover:not(:disabled) {
+    transform: none;
+    filter: brightness(1.15);
+}
+
+#gto-matrix-display table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
 #gto-matrix-display h4 {
     margin-bottom: 6px;
 }
@@ -395,6 +444,54 @@ button:disabled {
     border: 1px solid #555;
     padding: 6px;
     text-align: center;
+}
+
+.analysis-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.summary-card {
+    background: linear-gradient(145deg, #1f1f1f, #151515);
+    border: 1px solid #3b3b3b;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.summary-card h4 {
+    margin: 0 0 6px 0;
+    color: #ffc266;
+}
+
+.summary-card .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #b0ffc5;
+    font-weight: 700;
+}
+
+.summary-card .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+}
+
+.tag.success { background: rgba(80, 200, 120, 0.15); color: #b0ffc5; border: 1px solid rgba(80, 200, 120, 0.4); }
+.tag.error { background: rgba(255, 99, 71, 0.15); color: #ffb3a1; border: 1px solid rgba(255, 99, 71, 0.35); }
+.tag.neutral { background: rgba(255, 204, 102, 0.2); color: #ffe9b2; border: 1px solid rgba(255, 204, 102, 0.35); }
+
+.summary-card .caption {
+    color: #aaa;
+    font-size: 13px;
+    margin-top: 4px;
 }
 
 #action-log-panel {
@@ -453,6 +550,30 @@ button:disabled {
 #hand-result {
     font-size: 16px;
     line-height: 1.5;
+}
+
+.explanation-body {
+    background: #151515;
+    border: 1px solid #3b3b3b;
+    border-radius: 10px;
+    padding: 12px;
+    line-height: 1.6;
+    color: #dcdcdc;
+    position: relative;
+}
+
+.explanation-body.collapsed {
+    max-height: 160px;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0));
+}
+
+.explanation-body p {
+    margin-top: 0;
+}
+
+.explanation-body p + p {
+    margin-top: 10px;
 }
 
 .action-entry {

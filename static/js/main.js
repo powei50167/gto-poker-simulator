@@ -3,6 +3,7 @@
 const API_BASE = '/api';
 
 let lastAnalysisAvailable = false;
+let explanationCollapsed = true;
 
 // 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
 const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
@@ -43,7 +44,16 @@ function buildHandHtml(hand) {
 function resetFeedbackDisplay() {
     document.getElementById('feedback-result').innerHTML = '';
     document.getElementById('gto-matrix-body').innerHTML = '';
-    document.getElementById('error-explanation').textContent = '';
+    const explanationBox = document.getElementById('error-explanation');
+    const toggleBtn = document.getElementById('toggle-explanation-btn');
+    if (explanationBox) {
+        explanationBox.innerHTML = '';
+        explanationBox.classList.add('collapsed');
+    }
+    if (toggleBtn) {
+        toggleBtn.textContent = '展開詳解';
+    }
+    explanationCollapsed = true;
 }
 
 function updateAnalysisButton() {
@@ -204,24 +214,64 @@ function renderGameState(state) {
 function renderFeedback(feedback) {
     const resultDiv = document.getElementById('feedback-result');
     const matrixBody = document.getElementById('gto-matrix-body');
-    
+
+    const matrixData = Array.isArray(feedback.gto_matrix) ? [...feedback.gto_matrix] : [];
+    const sortedMatrix = [...matrixData].sort((a, b) => b.frequency - a.frequency);
+    const topAction = sortedMatrix[0];
+    const topEv = [...sortedMatrix].sort((a, b) => b.ev_bb - a.ev_bb)[0];
+
+    const statusTag = feedback.user_action_correct
+        ? '<span class="tag success">GTO</span>'
+        : '<span class="tag error">偏離</span>';
+
     resultDiv.innerHTML = `
-        <h3>您的行動評估</h3>
-        <p class="${feedback.user_action_correct ? 'correct' : 'error'}">
-            ${feedback.user_action_correct ? '✅ 符合 GTO' : '❌ 偏離 GTO'}
-        </p>
-        <p>EV Loss: <strong>${feedback.ev_loss_bb} </strong></p>
+        <div class="summary-card">
+            <h4>行動檢查</h4>
+            <div class="meta">${statusTag} ${feedback.user_action_correct ? '選擇與 GTO 一致' : '與 GTO 建議不同'}</div>
+            <div class="caption">即時標示行動是否符合策略</div>
+        </div>
+        <div class="summary-card">
+            <h4>EV 損失</h4>
+            <div class="meta"><span class="tag neutral">${feedback.ev_loss_bb} BB</span></div>
+            <div class="caption">顯示此行動相對 GTO 的期望值差距</div>
+        </div>
+        <div class="summary-card">
+            <h4>優先採用</h4>
+            <div class="meta">${topAction ? `${topAction.action} · ${(topAction.frequency * 100).toFixed(1)}%` : '無資料'}</div>
+            <div class="caption">最高頻率建議。最高 EV: ${topEv ? `${topEv.action} (${topEv.ev_bb.toFixed(2)} BB)` : '無資料'}</div>
+        </div>
     `;
-    document.getElementById('error-explanation').textContent = feedback.explanation;
 
     // 渲染 GTO 矩陣
-    matrixBody.innerHTML = feedback.gto_matrix.map(item => `
+    matrixBody.innerHTML = sortedMatrix.map(item => `
         <tr>
             <td>${item.action}</td>
             <td>${(item.frequency * 100).toFixed(1)}%</td>
             <td>${item.ev_bb.toFixed(2)}</td>
         </tr>
     `).join('');
+
+    renderExplanation(feedback.explanation);
+}
+
+function renderExplanation(explanationText) {
+    const explanationBox = document.getElementById('error-explanation');
+    const toggleBtn = document.getElementById('toggle-explanation-btn');
+    if (!explanationBox || !toggleBtn) return;
+
+    const paragraphs = (explanationText || '')
+        .split(/\n{2,}/)
+        .map(p => p.trim())
+        .filter(Boolean);
+
+    explanationBox.innerHTML = paragraphs.length
+        ? paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
+        : '<p>尚無詳細解說。</p>';
+
+    const shouldCollapse = explanationBox.textContent.length > 240;
+    explanationCollapsed = shouldCollapse;
+    explanationBox.classList.toggle('collapsed', shouldCollapse);
+    toggleBtn.textContent = shouldCollapse ? '展開詳解' : '收合詳解';
 }
 
 // --- API 呼叫 (保持不變) ---
@@ -370,11 +420,22 @@ async function startNewHand() {
     }
 }
 
+function toggleExplanation() {
+    const explanationBox = document.getElementById('error-explanation');
+    const toggleBtn = document.getElementById('toggle-explanation-btn');
+    if (!explanationBox || !toggleBtn) return;
+
+    explanationCollapsed = !explanationCollapsed;
+    explanationBox.classList.toggle('collapsed', explanationCollapsed);
+    toggleBtn.textContent = explanationCollapsed ? '展開詳解' : '收合詳解';
+}
+
 
 // --- 初始化和事件監聽 (保持不變) ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
     document.getElementById('analyze-last-btn').addEventListener('click', fetchLastFeedback);
+    document.getElementById('toggle-explanation-btn').addEventListener('click', toggleExplanation);
 
     // 處理 Fold 和 Call/Check
     document.getElementById('action-buttons').addEventListener('click', (event) => {
