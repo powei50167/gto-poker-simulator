@@ -716,30 +716,53 @@ class Table:
         if len(set(codes_upper)) != 2:
             raise ValueError("手牌不得重複。")
 
+        desired_codes = set(codes_upper)
         used_codes = set()
+        conflict_slots: list[tuple[Player, int]] = []
+
         for other in self.players:
             if other is player:
                 continue
-            for c in other.hand:
-                used_codes.add(f"{c.rank}{c.suit}")
+            for idx, c in enumerate(other.hand):
+                code = f"{c.rank}{c.suit}"
+                if code in desired_codes:
+                    conflict_slots.append((other, idx))
+                else:
+                    used_codes.add(code)
 
         for c in self.community_cards:
             used_codes.add(f"{c.rank}{c.suit}")
 
-        conflict = [code for code in codes_upper if code in used_codes]
-        if conflict:
-            raise ValueError(f"選擇的牌已被使用: {', '.join(conflict)}")
+        # 準備可用卡牌（排除新手牌、已使用且未衝突的卡）
+        unavailable_codes = desired_codes.union(used_codes)
+        available_cards = [
+            c for c in self._build_deck()
+            if f"{c.rank}{c.suit}" not in unavailable_codes
+        ]
 
-        # 重新建立牌庫，移除所有已使用的卡牌（包含新的手牌）
-        all_used = used_codes.union(codes_upper)
-        fresh_deck = [c for c in self._build_deck() if f"{c.rank}{c.suit}" not in all_used]
-        self.deck = fresh_deck
+        # 針對衝突玩家，換成任意未使用卡牌
+        random.shuffle(available_cards)
+        for other, idx in conflict_slots:
+            if not available_cards:
+                raise ValueError("沒有足夠的未使用卡牌可供替換。")
+            replacement = available_cards.pop()
+            other.hand[idx] = replacement
+            used_codes.add(f"{replacement.rank}{replacement.suit}")
 
         # 依照牌力排序 (由大到小) 以保持展示一致性
         player.hand = sorted(
             cards, key=lambda c: self.RANK_ORDER.index(c.rank), reverse=True
         )
+
+        # 重新建立牌庫，移除所有已使用的卡牌（包含新的手牌與替換後的卡）
+        all_used = desired_codes.union({f"{c.rank}{c.suit}" for c in self.community_cards})
+        for p in self.players:
+            for c in p.hand:
+                all_used.add(f"{c.rank}{c.suit}")
+
+        fresh_deck = [c for c in self._build_deck() if f"{c.rank}{c.suit}" not in all_used]
+        self.deck = fresh_deck
         logger.info(
             "Player hand overridden",
-            extra={"player": player.name, "cards": codes_upper},
+            extra={"player": player.name, "cards": codes_upper, "conflicts_resolved": len(conflict_slots)},
         )
