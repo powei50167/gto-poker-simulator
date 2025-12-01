@@ -12,6 +12,19 @@
             <header id="scenario-setup">
                 <!-- <h1>GTO 情境訓練</h1> -->
                 <button id="start-hand-btn">開始新牌局</button>
+                <div id="custom-hand-panel">
+                    <div class="custom-hand-row">
+                        <label for="hand-player-select">設定玩家手牌：</label>
+                        <select id="hand-player-select"></select>
+                    </div>
+                    <div class="custom-hand-row">
+                        <label for="card1-input">手牌</label>
+                        <input id="card1-input" type="text" maxlength="2" placeholder="As">
+                        <input id="card2-input" type="text" maxlength="2" placeholder="Kd">
+                        <button id="set-hand-btn" type="button">套用手牌</button>
+                    </div>
+                    <small>格式：Rank + 花色 (s♠ / h♥ / d♦ / c♣)，例如 As、Kh、Td。</small>
+                </div>
             </header>
 
             <div id="table-view">

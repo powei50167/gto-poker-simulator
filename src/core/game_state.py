@@ -82,6 +82,20 @@ class Table:
         random.shuffle(deck)
         return deck
 
+    def _parse_card_code(self, code: str) -> Card:
+        """將簡寫代碼 (如 Ah, Kd) 轉為 Card 物件並驗證。"""
+        if len(code) != 2:
+            raise ValueError("牌面格式應為兩個字元，例如 'Ah' 或 'Td'。")
+
+        rank, suit = code[0].upper(), code[1].lower()
+        valid_ranks = set(self.RANK_ORDER)
+        valid_suits = {'s', 'h', 'd', 'c'}
+
+        if rank not in valid_ranks or suit not in valid_suits:
+            raise ValueError("牌面無效，請使用如 As, Kh, Td 的格式。")
+
+        return Card(rank, suit)
+
     def _reset_players_for_new_hand(self):
         for p in self.players:
             p.chips = self.initial_stacks.get(p.name, p.chips)
@@ -680,3 +694,52 @@ class Table:
             'action_log': self.action_log,
             'hand_result': self.hand_result
         }
+
+    def set_player_hand(self, player_name: str, card_codes: List[str]):
+        """手動設定指定玩家的手牌 (僅限翻前階段)。"""
+
+        if self.hand_over:
+            raise ValueError("牌局已結束，請先開始新牌局再設定手牌。")
+
+        if self.current_stage != 'preflop':
+            raise ValueError("僅能在翻前階段設定手牌。")
+
+        if len(card_codes) != 2:
+            raise ValueError("請提供兩張手牌。")
+
+        player = next((p for p in self.players if p.name.lower() == player_name.lower()), None)
+        if not player:
+            raise ValueError("找不到指定玩家。")
+
+        cards = [self._parse_card_code(code) for code in card_codes]
+        codes_upper = [f"{c.rank}{c.suit}" for c in cards]
+        if len(set(codes_upper)) != 2:
+            raise ValueError("手牌不得重複。")
+
+        used_codes = set()
+        for other in self.players:
+            if other is player:
+                continue
+            for c in other.hand:
+                used_codes.add(f"{c.rank}{c.suit}")
+
+        for c in self.community_cards:
+            used_codes.add(f"{c.rank}{c.suit}")
+
+        conflict = [code for code in codes_upper if code in used_codes]
+        if conflict:
+            raise ValueError(f"選擇的牌已被使用: {', '.join(conflict)}")
+
+        # 重新建立牌庫，移除所有已使用的卡牌（包含新的手牌）
+        all_used = used_codes.union(codes_upper)
+        fresh_deck = [c for c in self._build_deck() if f"{c.rank}{c.suit}" not in all_used]
+        self.deck = fresh_deck
+
+        # 依照牌力排序 (由大到小) 以保持展示一致性
+        player.hand = sorted(
+            cards, key=lambda c: self.RANK_ORDER.index(c.rank), reverse=True
+        )
+        logger.info(
+            "Player hand overridden",
+            extra={"player": player.name, "cards": codes_upper},
+        )

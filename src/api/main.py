@@ -11,6 +11,7 @@ from .schemas import (
     GTOFeedback,
     AIActionResponse,
     ActionProcessResponse,
+    SetHandRequest,
 )
 
 app = FastAPI()
@@ -161,3 +162,19 @@ async def analyze_last_action():
     )
 
     return feedback
+
+
+@app.post("/api/set_hand")
+async def set_player_hand(request: SetHandRequest):
+    """允許手動覆寫 Hero 或任意玩家的手牌 (僅翻前)。"""
+
+    try:
+        game_table.set_player_hand(request.player_name, request.cards)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info(
+        "Player hand overridden via API",
+        extra={"player": request.player_name, "cards": request.cards},
+    )
+    return game_table.get_state_for_frontend()

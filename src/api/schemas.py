@@ -63,6 +63,12 @@ class UserAction(BaseModel):
     amount: int = 0  # 僅 Bet/Raise 時需要，代表總投入的金額
 
 
+class SetHandRequest(BaseModel):
+    """手動設定玩家手牌的請求"""
+    player_name: str
+    cards: List[str]
+
+
 class AIActionResponse(BaseModel):
     """AI 幫助決策的行動回應"""
     actor: str
