@@ -72,9 +72,25 @@ button:disabled {
     filter: grayscale(40%);
 }
 
+.setup-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 #start-hand-btn {
     background: linear-gradient(135deg, #ffb347, #ff7b00);
     color: #2b1a00;
+}
+
+#open-custom-hand-btn {
+    background: linear-gradient(135deg, #67d5b5, #3aa17e);
+}
+
+.custom-hand-note {
+    display: block;
+    margin-top: 6px;
+    color: #d0d0d0;
 }
 
 #custom-hand-panel {
@@ -83,6 +99,10 @@ button:disabled {
     border: 1px solid #4a4a4a;
     border-radius: 10px;
     padding: 10px 12px;
+    display: none;
+}
+
+#custom-hand-panel.visible {
     display: inline-block;
 }
 
