@@ -286,6 +286,8 @@ class Table:
                     "pot": self.pot,
                 },
             )
+            if self._resolve_all_in_showdown():
+                return
             return
         elif action.action_type == 'AllIn':
             if player.chips <= 0:
@@ -308,6 +310,8 @@ class Table:
                         "pot": self.pot,
                     },
                 )
+                if self._resolve_all_in_showdown():
+                    return
                 return
             else:
                 self._log_action(player, 'AllIn', new_commit)
@@ -323,7 +327,36 @@ class Table:
                 "pot": self.pot,
             },
         )
+        if self._resolve_all_in_showdown():
+            return
         self._advance_to_next_player()
+
+    def _all_active_players_all_in(self) -> bool:
+        active_players = [p for p in self.players if p.is_active]
+        if not active_players:
+            return False
+        return all(p.chips == 0 for p in active_players)
+
+    def _resolve_all_in_showdown(self) -> bool:
+        """當所有仍在牌局中的玩家都已全下時，直接發完公共牌並攤牌。"""
+        if self.hand_over or not self._all_active_players_all_in():
+            return False
+
+        remaining_cards = max(0, 5 - len(self.community_cards))
+        if remaining_cards > 0:
+            self._deal_community_cards(remaining_cards)
+
+        self.action_queue = []
+        self.current_stage = 'showdown'
+        self.hand_over = True
+        self._reveal_opponents()
+        self._finalize_showdown()
+
+        logger.info(
+            "All players all-in; fast-forwarded to showdown",
+            extra={"community_cards": [c.to_model() for c in self.community_cards]},
+        )
+        return True
 
     def _advance_stage(self):
         """依序進入翻牌、轉牌、河牌的下注流程"""
