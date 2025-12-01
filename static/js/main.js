@@ -4,6 +4,7 @@ const API_BASE = '/api';
 
 let lastAnalysisAvailable = false;
 let explanationCollapsed = true;
+let lastPlayersCache = [];
 
 // 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
 const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
@@ -94,9 +95,35 @@ function positionPlayerSlots() {
     });
 }
 
+function updateHandSelectOptions(players) {
+    const select = document.getElementById('hand-player-select');
+    if (!select) return;
+
+    const previousValue = select.value;
+    const optionsHtml = players.map(p => `
+        <option value="${p.name}">${p.name} (Seat ${p.seat_number})</option>
+    `).join('');
+    select.innerHTML = optionsHtml;
+
+    const hasPrevious = players.some(p => p.name === previousValue);
+    if (hasPrevious) {
+        select.value = previousValue;
+        return;
+    }
+
+    const heroPlayer = players.find(p => p.name.toLowerCase() === 'hero');
+    if (heroPlayer) {
+        select.value = heroPlayer.name;
+    } else if (players.length) {
+        select.value = players[0].name;
+    }
+}
+
 
 // --- 渲染遊戲狀態 (修改為固定 6 個位置的渲染邏輯) ---
 function renderGameState(state) {
+    lastPlayersCache = state.players || [];
+    updateHandSelectOptions(lastPlayersCache);
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
     document.getElementById('community-cards').innerHTML =
         state.community_cards.length
@@ -282,6 +309,54 @@ async function fetchState() {
         renderGameState(state);
     } catch (error) {
         console.error("Error fetching state:", error);
+    }
+}
+
+function normalizeCardInput(value) {
+    const trimmed = (value || '').trim();
+    if (trimmed.length < 2) return trimmed;
+    return trimmed[0].toUpperCase() + trimmed[1].toLowerCase();
+}
+
+async function submitCustomHand() {
+    const select = document.getElementById('hand-player-select');
+    const card1Input = document.getElementById('card1-input');
+    const card2Input = document.getElementById('card2-input');
+
+    if (!select || !card1Input || !card2Input) return;
+
+    const playerName = select.value;
+    const card1 = normalizeCardInput(card1Input.value);
+    const card2 = normalizeCardInput(card2Input.value);
+
+    if (!playerName) {
+        alert('請先選擇玩家。');
+        return;
+    }
+
+    if (!card1 || !card2) {
+        alert('請輸入兩張手牌，例如 As、Kd');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/set_hand`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player_name: playerName, cards: [card1, card2] })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            alert(`設定手牌失敗：${data.detail || '請確認輸入格式。'}`);
+            return;
+        }
+
+        renderGameState(data);
+        alert('手牌已更新！');
+    } catch (error) {
+        console.error('Error setting hand:', error);
+        alert('無法設定手牌，請稍後再試。');
     }
 }
 
@@ -478,8 +553,16 @@ document.addEventListener('DOMContentLoaded', () => {
         postAction('AllIn');
     });
 
+    const setHandBtn = document.getElementById('set-hand-btn');
+    if (setHandBtn) {
+        setHandBtn.addEventListener('click', submitCustomHand);
+    }
+
     updateAnalysisButton();
 
     // 首次載入時啟動新牌局
     // startNewHand();
+
+    // 初始化玩家選單
+    fetchState();
 });

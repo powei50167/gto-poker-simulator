@@ -77,6 +77,41 @@ button:disabled {
     color: #2b1a00;
 }
 
+#custom-hand-panel {
+    margin-top: 12px;
+    background: #353535;
+    border: 1px solid #4a4a4a;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: inline-block;
+}
+
+.custom-hand-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+#custom-hand-panel label {
+    white-space: nowrap;
+    color: #ffdf91;
+    font-weight: 600;
+}
+
+#custom-hand-panel input,
+#custom-hand-panel select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #1f1f1f;
+    color: #f0f0f0;
+}
+
+#custom-hand-panel small {
+    color: #bdbdbd;
+}
+
 /* --- 牌桌狀態區 (圓桌化) --- */
 #table-view {
     background-color: #006400; /* 綠色牌桌布 */
