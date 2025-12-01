@@ -11,7 +11,11 @@
         <main>
             <header id="scenario-setup">
                 <!-- <h1>GTO 情境訓練</h1> -->
-                <button id="start-hand-btn">開始新牌局</button>
+                <div class="setup-actions">
+                    <button id="start-hand-btn">開始新牌局</button>
+                    <button id="open-custom-hand-btn" type="button">設定手牌</button>
+                </div>
+                <small class="custom-hand-note">請先開始新牌局後再設定玩家手牌。</small>
                 <div id="custom-hand-panel">
                     <div class="custom-hand-row">
                         <label for="hand-player-select">設定玩家手牌：</label>

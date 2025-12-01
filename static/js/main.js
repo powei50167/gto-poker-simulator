@@ -5,6 +5,8 @@ const API_BASE = '/api';
 let lastAnalysisAvailable = false;
 let explanationCollapsed = true;
 let lastPlayersCache = [];
+let customHandPanelVisible = false;
+let customHandEnabled = false;
 
 // 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
 const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
@@ -62,6 +64,38 @@ function updateAnalysisButton() {
     if (!analyzeBtn) return;
     analyzeBtn.disabled = !lastAnalysisAvailable;
     analyzeBtn.textContent = lastAnalysisAvailable ? '分析上一手 GTO' : '尚無可分析行動';
+}
+
+function updateCustomHandPanelVisibility() {
+    const panel = document.getElementById('custom-hand-panel');
+    const triggerBtn = document.getElementById('open-custom-hand-btn');
+    const shouldShow = customHandEnabled && customHandPanelVisible;
+
+    if (panel) {
+        panel.classList.toggle('visible', shouldShow);
+    }
+
+    if (triggerBtn) {
+        triggerBtn.textContent = shouldShow ? '收合手牌設定' : '設定手牌';
+    }
+}
+
+function setCustomHandAvailability(enabled) {
+    customHandEnabled = enabled;
+    if (!enabled) {
+        customHandPanelVisible = false;
+    }
+
+    const triggerBtn = document.getElementById('open-custom-hand-btn');
+    const setHandBtn = document.getElementById('set-hand-btn');
+
+    [triggerBtn, setHandBtn].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !enabled;
+        btn.title = enabled ? '' : '請先開始新牌局後再設定手牌。';
+    });
+
+    updateCustomHandPanelVisibility();
 }
 
 // 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
@@ -123,6 +157,7 @@ function updateHandSelectOptions(players) {
 // --- 渲染遊戲狀態 (修改為固定 6 個位置的渲染邏輯) ---
 function renderGameState(state) {
     lastPlayersCache = state.players || [];
+    setCustomHandAvailability(customHandEnabled && !state.hand_over);
     updateHandSelectOptions(lastPlayersCache);
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
     document.getElementById('community-cards').innerHTML =
@@ -325,6 +360,11 @@ async function submitCustomHand() {
 
     if (!select || !card1Input || !card2Input) return;
 
+    if (!customHandEnabled) {
+        alert('請先開始新牌局後再設定手牌。');
+        return;
+    }
+
     const playerName = select.value;
     const card1 = normalizeCardInput(card1Input.value);
     const card2 = normalizeCardInput(card2Input.value);
@@ -479,11 +519,13 @@ async function postAction(actionType, amount = 0) {
 }
 
 async function startNewHand() {
-     try {
+    try {
         // 重置反饋區與上一手分析狀態
         resetFeedbackDisplay();
         lastAnalysisAvailable = false;
         updateAnalysisButton();
+
+        setCustomHandAvailability(true);
 
         const response = await fetch(`${API_BASE}/new_hand`, { method: 'POST' });
         const state = await response.json();
@@ -511,6 +553,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
     document.getElementById('analyze-last-btn').addEventListener('click', fetchLastFeedback);
     document.getElementById('toggle-explanation-btn').addEventListener('click', toggleExplanation);
+
+    const toggleCustomHandBtn = document.getElementById('open-custom-hand-btn');
+    if (toggleCustomHandBtn) {
+        toggleCustomHandBtn.addEventListener('click', () => {
+            if (!customHandEnabled) {
+                alert('請先開始新牌局後再設定手牌。');
+                return;
+            }
+
+            customHandPanelVisible = !customHandPanelVisible;
+            updateCustomHandPanelVisibility();
+        });
+    }
 
     // 處理 Fold 和 Call/Check
     document.getElementById('action-buttons').addEventListener('click', (event) => {
@@ -559,6 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateAnalysisButton();
+    setCustomHandAvailability(false);
 
     // 首次載入時啟動新牌局
     // startNewHand();
