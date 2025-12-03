@@ -44,14 +44,6 @@ class HandResult(BaseModel):
     amount_won: int
     description: str
 
-
-class HandHistory(BaseModel):
-    """提供下載/檢視的牌局完整紀錄"""
-    hero: PlayerState | None
-    action_log: List[ActionLogEntry]
-    community_cards: List[CardModel]
-    hand_over: bool
-
 class GameState(BaseModel):
     """牌局的完整狀態 (發送給前端)"""
     pot_size: int

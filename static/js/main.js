@@ -44,28 +44,6 @@ function buildHandHtml(hand) {
     return `<div class="player-hand">${cards}</div>`;
 }
 
-function renderHeroSummary(state) {
-    const container = document.getElementById('hero-details');
-    if (!container) return;
-
-    const hero = (state.players || []).find(p => p.name.toLowerCase() === 'hero');
-    if (!hero) {
-        container.innerHTML = '<p>尚未取得 Hero 資訊。</p>';
-        return;
-    }
-
-    const handHtml = buildHandHtml(hero.hand || []);
-    const handDisplay = handHtml || '<span class="muted">尚未發牌</span>';
-
-    container.innerHTML = `
-        <div class="hero-meta">
-            <span>Seat ${hero.seat_number} · ${hero.position}</span>
-            <span>${hero.name}</span>
-        </div>
-        <div class="hero-hand-row">${handDisplay}</div>
-    `;
-}
-
 function resetFeedbackDisplay() {
     document.getElementById('feedback-result').innerHTML = '';
     document.getElementById('gto-matrix-body').innerHTML = '';
@@ -286,11 +264,10 @@ function renderGameState(state) {
     });
     
     document.getElementById('player-slots-container').innerHTML = playerHtml;
-
+    
 
     // 調用定位函數
     positionPlayerSlots();
-    renderHeroSummary(state);
     renderActionLog(state.action_log || []);
     renderHandResult(state.hand_result, state.hand_over);
 }
@@ -478,41 +455,6 @@ function renderHandResult(result, handOver) {
     `;
 }
 
-function triggerDownload(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-}
-
-async function downloadHandHistory(format = 'json') {
-    try {
-        const response = await fetch(`${API_BASE}/hand_history?format=${format}`);
-        if (!response.ok) {
-            const data = await response.json();
-            alert(`下載失敗：${data.detail || '無法取得牌局紀錄。'}`);
-            return;
-        }
-
-        if (format === 'json') {
-            const data = await response.json();
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            triggerDownload(blob, 'hand_history.json');
-            return;
-        }
-
-        const blob = await response.blob();
-        triggerDownload(blob, 'hand_history.csv');
-    } catch (error) {
-        console.error('Error downloading hand history:', error);
-        alert('下載牌局紀錄時發生錯誤。');
-    }
-}
-
 function toggleActionAvailability(disabled) {
     const actionable = document.querySelectorAll('#action-buttons button, #submit-bet-btn, #bet-amount-input');
     actionable.forEach(btn => {
@@ -669,16 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const setHandBtn = document.getElementById('set-hand-btn');
     if (setHandBtn) {
         setHandBtn.addEventListener('click', submitCustomHand);
-    }
-
-    const downloadJsonBtn = document.getElementById('download-history-json');
-    if (downloadJsonBtn) {
-        downloadJsonBtn.addEventListener('click', () => downloadHandHistory('json'));
-    }
-
-    const downloadCsvBtn = document.getElementById('download-history-csv');
-    if (downloadCsvBtn) {
-        downloadCsvBtn.addEventListener('click', () => downloadHandHistory('csv'));
     }
 
     updateAnalysisButton();
