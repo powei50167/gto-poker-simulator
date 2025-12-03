@@ -562,6 +562,53 @@ button:disabled {
     color: #9ad1ff;
 }
 
+.hero-card {
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, rgba(76, 110, 245, 0.15), rgba(76, 110, 245, 0.05));
+    border: 1px solid rgba(76, 110, 245, 0.35);
+}
+
+.hero-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #e7ecff;
+}
+
+.hero-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+}
+
+.hero-hand-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-actions {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.history-actions button {
+    flex: 1;
+    padding: 8px 10px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid #4b6cb7;
+    background: linear-gradient(135deg, rgba(75, 108, 183, 0.2), rgba(24, 40, 72, 0.4));
+    color: #dce6ff;
+    cursor: pointer;
+}
+
+.muted {
+    color: #a8b3c2;
+}
+
 .action-stage {
     margin-bottom: 12px;
 }
