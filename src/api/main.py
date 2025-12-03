@@ -1,7 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pathlib import Path
+import csv
+import io
 from src.core.game_state import Table
 from src.core.logger import get_logger
 from src.gto_poker_simulator.strategy_logic import StrategyLogic
@@ -12,6 +14,7 @@ from .schemas import (
     AIActionResponse,
     ActionProcessResponse,
     SetHandRequest,
+    HandHistory,
 )
 
 app = FastAPI()
@@ -178,3 +181,51 @@ async def set_player_hand(request: SetHandRequest):
         extra={"player": request.player_name, "cards": request.cards},
     )
     return game_table.get_state_for_frontend()
+
+
+@app.get("/api/hand_history", response_model=HandHistory)
+async def get_hand_history(format: str = Query("json", pattern="^(json|csv)$")):
+    """取得完整的行動紀錄，支援 JSON 檢視或 CSV 下載。"""
+
+    history_data = game_table.get_hand_history()
+
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        hero = history_data.get("hero") or {}
+        hero_hand = hero.get("hand") or []
+        hero_hand_text = " ".join([f"{c['rank']}{c['suit']}" for c in hero_hand]) or "N/A"
+
+        writer.writerow(["Hero", hero.get("name", ""), hero.get("position", ""), hero.get("seat_number", ""), hero_hand_text])
+        writer.writerow([])
+        writer.writerow(["Stage", "Seat", "Position", "Player", "Action", "Amount"])
+
+        for entry in history_data.get("action_log", []):
+            writer.writerow([
+                entry.get("stage", ""),
+                entry.get("seat_number", ""),
+                entry.get("position", ""),
+                entry.get("name", ""),
+                entry.get("action", ""),
+                entry.get("amount", 0),
+            ])
+
+        csv_content = output.getvalue()
+        output.close()
+
+        logger.info(
+            "Hand history exported as CSV",
+            extra={"actions": len(history_data.get("action_log", []))},
+        )
+
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=hand_history.csv"},
+        )
+
+    logger.info(
+        "Hand history requested", extra={"actions": len(history_data.get("action_log", []))}
+    )
+    return history_data

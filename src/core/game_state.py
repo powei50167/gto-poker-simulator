@@ -728,6 +728,27 @@ class Table:
             'hand_result': self.hand_result
         }
 
+    def get_hand_history(self) -> Dict[str, Any]:
+        """產生完整的行動紀錄與 Hero 資訊，供下載或檢視。"""
+
+        hero = self.get_hero()
+        hero_info = None
+
+        if hero:
+            hero_info = {
+                'name': hero.name,
+                'position': hero.position,
+                'seat_number': hero.seat_number,
+                'hand': [c.to_model() for c in hero.hand],
+            }
+
+        return {
+            'hero': hero_info,
+            'action_log': self.action_log,
+            'community_cards': [c.to_model() for c in self.community_cards],
+            'hand_over': self.hand_over,
+        }
+
     def set_player_hand(self, player_name: str, card_codes: List[str]):
         """手動設定指定玩家的手牌 (僅限翻前階段)。"""
 
