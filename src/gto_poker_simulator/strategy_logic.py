@@ -211,7 +211,7 @@ class StrategyLogic:
         if self.api_key and self.client:
             try:
                 response = self.client.responses.create(
-                    model="gpt-5.1",
+                    model="gpt-4o-mini",
                     input=[
                         {"role": "system", "content": "你是一位德州撲克6人現金桌玩家，請根據gto策略給出合理行動。"},
                         {"role": "user", "content": prompt},
