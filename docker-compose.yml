@@ -1,9 +1,10 @@
 version: "3.9"
 
 services:
-  api:
+
+  api_u1:
     build: .
-    container_name: gto_poker_simulator
+    container_name: gto_poker_sim_u1
     ports:
       - "9000:9000"
     env_file:
@@ -11,8 +12,31 @@ services:
     volumes:
       - ./src:/app/src
       - ./static:/app/static
-      
     command: >
       sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 9000 --reload"
 
+  api_u2:
+    build: .
+    container_name: gto_poker_sim_u2
+    ports:
+      - "9002:9000"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./static:/app/static
+    command: >
+      sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 9000 --reload"
 
+  api_u3:
+    build: .
+    container_name: gto_poker_sim_u3
+    ports:
+      - "9003:9000"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./static:/app/static
+    command: >
+      sh -c "PYTHONPATH=/app/src uvicorn api.main:app --host 0.0.0.0 --port 9000 --reload"
