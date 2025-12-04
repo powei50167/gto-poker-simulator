@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List
+from typing import Any, List, Tuple
 from src.api.schemas import (
     GameState,
     UserAction,
@@ -123,12 +123,16 @@ class StrategyLogic:
                     input=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": context_prompt},
-                        {"role": "assistant", "content": json_schema_prompt}
-                    ]
+                        {"role": "assistant", "content": json_schema_prompt},
+                    ],
                 )
 
-                # 這裡 output_text 會是純 JSON（已由 OpenAI 保證格式正確）
-                reply_json = json.loads(response.output_text)
+                # 這裡會盡可能取得 OpenAI 回傳的 JSON 字串
+                response_text = self._extract_response_text(response)
+                if not response_text:
+                    raise ValueError("Empty response from OpenAI")
+
+                reply_json = json.loads(response_text)
 
                 logger.info(
                     "AI Generated JSON for user action evaluation",
@@ -153,47 +157,22 @@ class StrategyLogic:
         # 將 JSON 組成物件
         # ----------------------------
         try:
-            gto_matrix_raw = reply_json.get("gto_matrix", [])
-            allowed_actions = {"Check", "Call", "Raise", "Fold"}
+            gto_matrix, sanitized = self._normalize_gto_matrix(reply_json.get("gto_matrix", []))
 
-            if not isinstance(gto_matrix_raw, list):
-                raise ValueError("gto_matrix should be a list")
-
-            gto_matrix: List[GTOActionData] = []
-            actions_seen = set()
-
-            for item in gto_matrix_raw:
-                if not isinstance(item, dict):
-                    raise ValueError("gto_matrix item should be a dict")
-
-                action = item.get("action")
-                frequency = item.get("frequency")
-                ev_bb = item.get("ev_bb")
-
-                if action not in allowed_actions:
-                    raise ValueError(f"Unexpected action: {action}")
-                if not isinstance(frequency, (int, float)):
-                    raise ValueError(f"Invalid frequency type for {action}")
-                if not isinstance(ev_bb, (int, float)):
-                    raise ValueError(f"Invalid ev_bb type for {action}")
-
-                actions_seen.add(action)
-                gto_matrix.append(
-                    GTOActionData(
-                        action=action,
-                        frequency=frequency,
-                        ev_bb=ev_bb,
-                    )
+            if sanitized:
+                logger.warning(
+                    "Sanitized AI gto_matrix output",
+                    extra={"raw": reply_json.get("gto_matrix", [])},
                 )
-
-            if actions_seen != allowed_actions:
-                raise ValueError("gto_matrix missing required actions")
 
             return GTOFeedback(
                 user_action_correct=bool(reply_json.get("user_action_correct", True)),
                 ev_loss_bb=float(reply_json.get("ev_loss_bb", 0.0)),
                 gto_matrix=gto_matrix,
-                explanation=reply_json.get("explanation", "")
+                explanation=reply_json.get(
+                    "explanation",
+                    "AI 回傳資料格式不完整，已自動補齊缺漏欄位。",
+                ),
             )
         except Exception as e:
             logger.warning(
@@ -260,7 +239,7 @@ class StrategyLogic:
                     ],
                 )
 
-                reply = response.output_text
+                reply = self._extract_response_text(response)
 
                 logger.info(
                     "OpenAI response for opponent action",
@@ -304,6 +283,84 @@ class StrategyLogic:
             return UserAction(action_type="Call", amount=to_call)
         logger.warning("Fallback opponent action (check)")
         return UserAction(action_type="Check", amount=0)
+
+    def _extract_response_text(self, response: Any) -> str:
+        """
+        嘗試從不同的 OpenAI Response 版本中取得文字內容，避免因屬性差異導致回傳空值。
+        """
+
+        text = getattr(response, "output_text", None)
+        if text:
+            return text
+
+        try:
+            outputs = getattr(response, "output", None) or getattr(response, "outputs", None)
+            if outputs:
+                first_output = outputs[0]
+                content = getattr(first_output, "content", None)
+                if content:
+                    first_content = content[0]
+                    text_obj = getattr(first_content, "text", None)
+                    if isinstance(text_obj, str):
+                        return text_obj
+                    if text_obj:
+                        value = getattr(text_obj, "value", None) or getattr(text_obj, "text", None)
+                        if value:
+                            return value
+        except Exception as exc:
+            logger.debug(
+                "Failed to extract response text from structured output",
+                extra={"error": str(exc)},
+            )
+
+        return ""
+
+    def _normalize_gto_matrix(self, gto_matrix_raw: Any) -> Tuple[List[GTOActionData], bool]:
+        """
+        將模型回傳的 gto_matrix 標準化為完整的四個行動，缺漏或格式錯誤的欄位以 0 補齊。
+
+        Returns tuple (gto_matrix, sanitized) where sanitized 表示是否對輸入進行了修正。
+        """
+
+        allowed_actions = ["Check", "Call", "Raise", "Fold"]
+        sanitized = False
+
+        # 初始預設值
+        matrix_map = {
+            action: GTOActionData(action=action, frequency=0.0, ev_bb=0.0)
+            for action in allowed_actions
+        }
+
+        if not isinstance(gto_matrix_raw, list):
+            return list(matrix_map.values()), True
+
+        for item in gto_matrix_raw:
+            if not isinstance(item, dict):
+                sanitized = True
+                continue
+
+            action = item.get("action")
+            if action not in matrix_map:
+                sanitized = True
+                continue
+
+            frequency = item.get("frequency")
+            ev_bb = item.get("ev_bb")
+
+            if not isinstance(frequency, (int, float)) or not isinstance(ev_bb, (int, float)):
+                sanitized = True
+                continue
+
+            sanitized = sanitized or frequency < 0 or frequency > 1
+            clamped_frequency = min(max(float(frequency), 0.0), 1.0)
+
+            matrix_map[action] = GTOActionData(
+                action=action,
+                frequency=clamped_frequency,
+                ev_bb=float(ev_bb),
+            )
+
+        return [matrix_map[action] for action in allowed_actions], sanitized
 
     def _sanitize_ai_action(
         self,
