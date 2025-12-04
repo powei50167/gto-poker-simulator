@@ -56,6 +56,7 @@ class GameState(BaseModel):
     opponent_hands: List[OpponentHand] = []
     action_log: List[ActionLogEntry] = []
     hand_result: HandResult | None = None
+    hand_id: int | None = None
 
 class UserAction(BaseModel):
     """用戶從前端發送的行動請求"""
