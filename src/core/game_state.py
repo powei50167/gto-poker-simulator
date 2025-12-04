@@ -82,6 +82,7 @@ class Table:
         self.hand_result: Dict[str, Any] | None = None
         self.history_repo = history_repo or HistoryRepository()
         self.hand_history_recorded = False
+        self.final_pot_size: int = 0
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -192,6 +193,7 @@ class Table:
         self.opponent_hands = []
         self.action_log = []
         self.hand_result = None
+        self.final_pot_size = 0
 
         self._reset_players_for_new_hand()
         self._assign_seats()
@@ -579,9 +581,11 @@ class Table:
         """記錄牌局結果並將底池分配給贏家。"""
         if not winner:
             self.hand_result = None
+            self.final_pot_size = self.pot
             return
 
         amount_won = self.pot
+        self.final_pot_size = self.pot
         winner.chips += amount_won
         self.pot = 0
         self.hand_result = {
@@ -745,8 +749,10 @@ class Table:
             is_current = (i == self.current_player_index)
             players_state.append(p.to_model(is_current, self.current_round_bets.get(p.name, 0)))
 
+        pot_display = self.final_pot_size if self.hand_over else self.pot
+
         return {
-            'pot_size': self.pot,
+            'pot_size': pot_display,
             'community_cards': [c.to_model() for c in self.community_cards],
             'action_position': action_player.position,
             'players': players_state,
