@@ -161,6 +161,15 @@ button:disabled {
 #board-center .board-meta {
     font-size: 18px;
     letter-spacing: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.table-id {
+    font-size: 14px;
+    color: #ffdf91;
+    letter-spacing: 0.8px;
 }
 
 .community-row {

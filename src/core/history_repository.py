@@ -31,13 +31,16 @@ class HistoryRepository:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def save_hand(self, state: Dict[str, Any]):
+    def save_hand(self, state: Dict[str, Any]) -> int:
+        """儲存牌局並返回對應的紀錄 ID。"""
+
         payload = json.dumps(state, ensure_ascii=False)
         with self._lock, self._connect() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO hand_history (created_at, state_json) VALUES (datetime('now'), ?)",
                 (payload,),
             )
+            return int(cursor.lastrowid)
 
     def list_hands(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         with self._connect() as conn:

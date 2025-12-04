@@ -165,6 +165,10 @@ function renderGameState(state) {
             ? state.community_cards.map(formatCard).join('')
             : '<span class="card-face placeholder">--</span>';
     document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
+    const tableIdEl = document.getElementById('table-id');
+    if (tableIdEl) {
+        tableIdEl.textContent = state.hand_id ? `#${state.hand_id}` : '尚未產生';
+    }
     document.getElementById('current-position').textContent = state.action_position;
     document.getElementById('hand-status').textContent = state.hand_over ? '牌局已結束，請開始新局。' : '輪到您行動。';
 

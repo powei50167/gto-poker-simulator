@@ -82,6 +82,7 @@ class Table:
         self.hand_result: Dict[str, Any] | None = None
         self.history_repo = history_repo or HistoryRepository()
         self.hand_history_recorded = False
+        self.current_hand_id: int | None = None
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -192,6 +193,7 @@ class Table:
         self.opponent_hands = []
         self.action_log = []
         self.hand_result = None
+        self.current_hand_id = None
 
         self._reset_players_for_new_hand()
         self._assign_seats()
@@ -606,7 +608,8 @@ class Table:
             return
 
         state = self.get_state_for_frontend()
-        self.history_repo.save_hand(state)
+        saved_id = self.history_repo.save_hand(state)
+        self.current_hand_id = saved_id
         self.hand_history_recorded = True
 
         logger.info(
@@ -755,7 +758,8 @@ class Table:
             'hand_over': self.hand_over,
             'opponent_hands': self.opponent_hands,
             'action_log': self.action_log,
-            'hand_result': self.hand_result
+            'hand_result': self.hand_result,
+            'hand_id': self.current_hand_id,
         }
 
     def set_player_hand(self, player_name: str, card_codes: List[str]):
