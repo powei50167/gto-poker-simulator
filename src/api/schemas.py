@@ -81,6 +81,20 @@ class ActionProcessResponse(BaseModel):
     success: bool
     detail: str
 
+
+class HandHistorySummary(BaseModel):
+    """歷史牌局的摘要資訊，便於列表顯示"""
+    id: int
+    created_at: str
+    hand_result: HandResult | None = None
+
+
+class HandHistoryRecord(BaseModel):
+    """完整的歷史牌局資料"""
+    id: int
+    created_at: str
+    state: GameState
+
 class GTOActionData(BaseModel):
     """GTO 建議的單個行動數據"""
     action: str
