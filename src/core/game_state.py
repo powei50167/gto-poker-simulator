@@ -829,5 +829,3 @@ class Table:
             "Player hand overridden",
             extra={"player": player.name, "cards": codes_upper, "conflicts_resolved": len(conflict_slots)},
         )
-
-
