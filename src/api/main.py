@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 from src.core.game_state import Table
+from src.core.history_repository import HistoryRepository
 from src.core.logger import get_logger
 from src.gto_poker_simulator.strategy_logic import StrategyLogic
 from .schemas import (
@@ -12,15 +13,18 @@ from .schemas import (
     AIActionResponse,
     ActionProcessResponse,
     SetHandRequest,
+    HandHistorySummary,
+    HandHistoryRecord,
 )
 
 app = FastAPI()
 logger = get_logger(__name__)
 
 # 初始化核心組件
-players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000, 
+players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000,
                 'Player4': 10000, 'Player5': 10000, 'Player6': 10000}
-game_table = Table(players_init, big_blind=100)
+history_repo = HistoryRepository()
+game_table = Table(players_init, big_blind=100, history_repo=history_repo)
 gto_logic = StrategyLogic()
 last_user_action_context: dict | None = None
 
@@ -178,3 +182,31 @@ async def set_player_hand(request: SetHandRequest):
         extra={"player": request.player_name, "cards": request.cards},
     )
     return game_table.get_state_for_frontend()
+
+
+@app.get("/api/history", response_model=list[HandHistorySummary])
+async def list_hand_history(limit: int = 20, offset: int = 0):
+    """取得歷史牌局列表，預設最多返回 20 筆。"""
+    records = history_repo.list_hands(limit=limit, offset=offset)
+    return [
+        HandHistorySummary(
+            id=rec["id"],
+            created_at=rec["created_at"],
+            hand_result=rec["state"].get("hand_result"),
+        )
+        for rec in records
+    ]
+
+
+@app.get("/api/history/{hand_id}", response_model=HandHistoryRecord)
+async def get_hand_history(hand_id: int):
+    """取得指定牌局的完整歷史資料。"""
+    record = history_repo.get_hand(hand_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="找不到指定的歷史牌局。")
+
+    return HandHistoryRecord(
+        id=record["id"],
+        created_at=record["created_at"],
+        state=GameState(**record["state"]),
+    )

@@ -1,6 +1,7 @@
 import random
 from collections import Counter
 from typing import List, Dict, Any
+from src.core.history_repository import HistoryRepository
 from src.api.schemas import UserAction
 from src.core.logger import get_logger
 
@@ -57,7 +58,12 @@ class Table:
     RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
     RANK_VALUE = {rank: idx for idx, rank in enumerate(RANK_ORDER)}
 
-    def __init__(self, players_data: Dict[str, int], big_blind: int = 100):
+    def __init__(
+        self,
+        players_data: Dict[str, int],
+        big_blind: int = 100,
+        history_repo: HistoryRepository | None = None,
+    ):
         self.big_blind = big_blind
         self.initial_stacks = dict(players_data)
         self.players = [Player(name, chips) for name, chips in players_data.items()]
@@ -74,6 +80,8 @@ class Table:
         self.action_queue: List[int] = []
         self.action_log: List[Dict[str, Any]] = []
         self.hand_result: Dict[str, Any] | None = None
+        self.history_repo = history_repo or HistoryRepository()
+        self.hand_history_recorded = False
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -198,6 +206,7 @@ class Table:
 
         self._post_blinds()
         self._start_preflop_action()
+        self.hand_history_recorded = False
         logger.info(
             "Hand initialized",
             extra={
@@ -412,6 +421,7 @@ class Table:
             winner = active_players[0] if active_players else None
             self._set_hand_result(winner)
             self._reveal_opponents()
+            self._persist_hand_history()
             return
         self._advance_to_next_player()
         logger.info(
@@ -473,6 +483,7 @@ class Table:
             self.current_stage = 'showdown'
             self._set_hand_result(winner)
             self._reveal_opponents()
+            self._persist_hand_history()
             return
         self._advance_stage()
         logger.info(
@@ -489,6 +500,7 @@ class Table:
         self.current_stage = 'showdown'
         self._set_hand_result(winner)
         self._reveal_opponents()
+        self._persist_hand_history()
         logger.info(
             "Hand ended due to hero fold",
             extra={
@@ -588,6 +600,23 @@ class Table:
             },
         )
 
+    def _persist_hand_history(self):
+        """將結束的牌局資料保存到 SQLite。"""
+        if not self.hand_over or self.hand_history_recorded or not self.history_repo:
+            return
+
+        state = self.get_state_for_frontend()
+        self.history_repo.save_hand(state)
+        self.hand_history_recorded = True
+
+        logger.info(
+            "Hand history persisted",
+            extra={
+                "hand_result": self.hand_result,
+                "community_cards": [c.to_model() for c in self.community_cards],
+            },
+        )
+
     def _finalize_showdown(self):
         """根據公共牌與手牌強度決定贏家。"""
         active_players = [p for p in self.players if p.is_active]
@@ -617,6 +646,7 @@ class Table:
                 "winning_hand": best_strength,
             },
         )
+        self._persist_hand_history()
 
     def _evaluate_hand_strength(self, player: Player) -> tuple:
         """回傳用於比較的牌型強度元組 (依賴德州撲克 7 張牌最佳牌型)。"""
