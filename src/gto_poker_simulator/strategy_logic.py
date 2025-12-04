@@ -117,21 +117,17 @@ class StrategyLogic:
 
         if self.api_key and self.client:
             try:
-                response = self.client.responses.create(
+                response = self.client.chat.completions.create(
                     model="gpt-5.1",
-                    response_format={"type": "json_object"},  # ⭐ 強制 JSON
-                    input=[
+                    response_format={"type": "json_object"},
+                    messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": context_prompt},
                         {"role": "assistant", "content": json_schema_prompt},
                     ],
                 )
 
-                # 這裡會盡可能取得 OpenAI 回傳的 JSON 字串
-                response_text = self._extract_response_text(response)
-                if not response_text:
-                    raise ValueError("Empty response from OpenAI")
-
+                response_text = response.choices[0].message.content
                 reply_json = json.loads(response_text)
 
                 logger.info(
@@ -294,19 +290,10 @@ class StrategyLogic:
             return text
 
         try:
-            outputs = getattr(response, "output", None) or getattr(response, "outputs", None)
-            if outputs:
-                first_output = outputs[0]
-                content = getattr(first_output, "content", None)
-                if content:
-                    first_content = content[0]
-                    text_obj = getattr(first_content, "text", None)
-                    if isinstance(text_obj, str):
-                        return text_obj
-                    if text_obj:
-                        value = getattr(text_obj, "value", None) or getattr(text_obj, "text", None)
-                        if value:
-                            return value
+            if hasattr(response, "choices") and response.choices:
+                content = response.choices[0].message.content
+                if isinstance(content, str):
+                    return content
         except Exception as exc:
             logger.debug(
                 "Failed to extract response text from structured output",
