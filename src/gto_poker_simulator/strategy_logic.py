@@ -29,149 +29,154 @@ class StrategyLogic:
             self.client = None
 
     def evaluate_user_action(self, game_state: GameState, user_action: UserAction) -> GTOFeedback:
-        # 找出 acting player 與手牌
+        """
+        改寫後版本：
+        - 使用 response_format={"type": "json_object"} 強制模型回傳合法 JSON
+        - prompt 拆段降低混亂
+        - 保證 gto_matrix 結構統一
+        - 移除易出錯的 _parse_json_reply
+        """
+
         players = game_state.players
         action_position = game_state.action_position
         acting_player = next((p for p in players if p.position == action_position), None)
         hand = acting_player.hand if acting_player else []
         hero_stack = acting_player.chips if acting_player else 0
 
-        # 組合分析描述
+        # 敘述牌局狀態
         state_desc = self._build_state_description(
             game_state, hand, include_action_log=True
         )
 
-        # 決定合法行動（避免模型亂給 UTG Check 類錯誤）
+        # 依據你的合法行動規則重新整理一次（簡化版）
         stage = game_state.current_stage
         position = action_position
 
-        # Preflop 行動規則
         if stage == "preflop":
-            if position in ["UTG", "HJ", "CO", "BTN"]:  # 第一輪非盲注不能 check
-                legal_actions = ["Call", "Raise", "Fold"]
-            elif position == "SB":
+            if position in ["UTG", "HJ", "CO", "BTN", "SB"]:
                 legal_actions = ["Call", "Raise", "Fold"]
             elif position == "BB":
-                # BB 在 preflop 才能 check
                 legal_actions = ["Check", "Call", "Raise", "Fold"]
             else:
                 legal_actions = ["Call", "Raise", "Fold"]
         else:
-            # flop/turn/river 都能 Check
             legal_actions = ["Check", "Call", "Raise", "Fold"]
 
         legal_action_str = ", ".join([f'"{a}"' for a in legal_actions])
-        
-        # 要求 GPT 回傳 JSON（強調不要使用 ```）
-        prompt = f"""
-你是一位德州撲克6人現金桌 GTO 教練，請依據以下牌局資訊提供完整的 GTO 建議與原因，並給出各行動的 frequency 與 ev_bb。
 
-牌桌資訊: {state_desc}, 玩家行動：{user_action.action_type}, 下注金額：{user_action.amount}, 剩餘籌碼:{hero_stack}
+        system_prompt = (
+            "你是一位頂尖的德州撲克 6-max 現金桌 GTO 教練，"
+            "必須嚴格依照 JSON schema 回覆，且不能產生任何額外文字。"
+        )
 
-⚠️ 請務必遵守以下規則：
+        context_prompt = f"""
+    以下是當前牌局資訊：
 
-- 僅能使用「此局面合法的行動」：{legal_action_str}
-- preflop 若只有大小盲（POT=150）且尚未有人加注，合法行動為：
-  - Call（補到大盲額度）
-  - Raise（Open Raise）
-  - Fold
-  - Check 不合法，請 frequency=0、ev_bb=0。
-- 若某行動不在 {legal_action_str} 中，必須將 frequency=0 且 ev_bb=0。
-- 必須回傳可被 json.loads() 解析的純 JSON。
-- 不得加入 ```、額外評論、格式化語法或 JSON 外內容。
-請輸出以下格式（務必為合法 JSON）：
-{{
-  "user_action_correct": true 或 false,
-  "ev_loss_bb": 數字,
-  "gto_matrix": [
-    {{"action": "Check", "frequency": 0~1, "ev_bb": 數字}},
-    {{"action": "Call", "frequency": 0~1, "ev_bb": 數字}},
-    {{"action": "Raise", "frequency": 0~1, "ev_bb": 數字}},
-    {{"action": "Fold", "frequency": 0~1, "ev_bb": 數字}}
-  ],
-  "explanation": " GTO 教練建議說明文字"
-}}
+    {state_desc}
 
-注意：
-- 若某行動在此局面不合法，請 frequency=0, ev_bb=0。
-- 確保 JSON 能用 Python json.loads() 成功解析。
-"""
+    Hero 行動：{user_action.action_type}
+    下注金額：{user_action.amount}
+    剩餘籌碼：{hero_stack}
 
-        reply = ""  # 先定義，避免例外時變成未定義變數
+    合法行動為：{legal_actions}
+
+    請根據 GTO 理論：
+    1. 判斷 Hero 行動是否合理
+    2. 計算相對於 GTO 的 EV 損失（可概略估算）
+    3. 提供每個行動 (Check / Call / Raise / Fold) 的 GTO 頻率 與 EV（非行動填 0）
+    """
+
+        json_schema_prompt = f"""
+    請務必輸出完全符合以下 JSON 格式（不能加入註解、不能加入 ```）：
+
+    {{
+    "user_action_correct": true 或 false,
+    "ev_loss_bb": 0,
+    "gto_matrix": [
+        {{"action": "Check", "frequency": 0, "ev_bb": 0}},
+        {{"action": "Call", "frequency": 0, "ev_bb": 0}},
+        {{"action": "Raise", "frequency": 0, "ev_bb": 0}},
+        {{"action": "Fold", "frequency": 0, "ev_bb": 0}}
+    ],
+    "explanation": "原因說明"
+    }}
+
+    重要規則：
+    - 只能使用合法行動：{legal_action_str}
+    - 不合法行動的 frequency = 0 且 ev_bb = 0
+    - frequency 必須介於 0~1
+    - JSON 之外不能有任何文字
+    """
 
         logger.info(
             "OpenAI prompt for user action evaluation",
-            extra={
-                "【牌桌資訊】": state_desc,
-                "【玩家行動：】": user_action.action_type,
-                "【數額：】": user_action.amount,
-                "stage": game_state.current_stage,
-                "action": user_action.model_dump(),
-            },
+            extra={"context": context_prompt, "schema": json_schema_prompt},
         )
+
+        reply_json = {}
 
         if self.api_key and self.client:
             try:
                 response = self.client.responses.create(
                     model="gpt-5.1",
+                    response_format={"type": "json_object"},  # ⭐ 強制 JSON
                     input=[
-                        {"role": "system", "content": "你是一位德州撲克6人現金桌 GTO 教練。"},
-                        {"role": "user", "content": prompt}
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": context_prompt},
+                        {"role": "assistant", "content": json_schema_prompt}
                     ]
                 )
 
-                # 這裡依照你 SDK 的用法，如果不是 output_text 可以換成對應欄位
-                reply = response.output_text
+                # 這裡 output_text 會是純 JSON（已由 OpenAI 保證格式正確）
+                reply_json = json.loads(response.output_text)
 
                 logger.info(
-                    "OpenAI response for user action evaluation",
-                    extra={
-                        "【AI生成內容】": reply,
-                        "stage": game_state.current_stage,
-                        "action": user_action.model_dump(),
-                    },
-                )
-
-                data = self._parse_json_reply(reply)
-
-                # 組裝 gto_matrix
-                gto_matrix = [
-                    GTOActionData(
-                        action=item["action"],
-                        frequency=item["frequency"],
-                        ev_bb=item["ev_bb"]
-                    )
-                    for item in data.get("gto_matrix", [])
-                ]
-
-                return GTOFeedback(
-                    user_action_correct=data.get("user_action_correct", True),
-                    ev_loss_bb=data.get("ev_loss_bb", 0.0),
-                    gto_matrix=gto_matrix,
-                    explanation=data.get("explanation", "")
+                    "AI Generated JSON for user action evaluation",
+                    extra={"JSON": reply_json},
                 )
 
             except Exception as e:
-                # 解析或 API 錯誤，印出來方便你在 server log 看問題
                 logger.error(
-                    "GPT error while handling GTO JSON",
-                    extra={"error": str(e), "reply": reply},
+                    "GPT JSON error in evaluate_user_action",
+                    extra={"error": str(e)},
                 )
 
-        # fallback 模式：AI 壞掉時至少有東西回傳
-        logger.warning(
-            "Falling back to default GTO feedback",
-            extra={"action": user_action.action_type},
-        )
+        # ----------------------------
+        # Fallback 機制（模型失敗時）
+        # ----------------------------
+        if not reply_json:
+            logger.warning("Falling back to default GTO feedback")
+
+            return GTOFeedback(
+                user_action_correct=True,
+                ev_loss_bb=0,
+                gto_matrix=[
+                    GTOActionData(action="Check", frequency=0, ev_bb=0),
+                    GTOActionData(action="Call", frequency=0, ev_bb=0),
+                    GTOActionData(action="Raise", frequency=0, ev_bb=0),
+                    GTOActionData(action="Fold", frequency=0, ev_bb=0),
+                ],
+                explanation="AI 回傳不合法 JSON，使用預設資料。"
+            )
+
+        # ----------------------------
+        # 將 JSON 組成物件
+        # ----------------------------
+
+        gto_matrix = [
+            GTOActionData(
+                action=item["action"],
+                frequency=item["frequency"],
+                ev_bb=item["ev_bb"]
+            )
+            for item in reply_json.get("gto_matrix", [])
+        ]
+
         return GTOFeedback(
-            user_action_correct=True,
-            ev_loss_bb=0.0,
-            gto_matrix=[
-                GTOActionData(action="Check", frequency=0, ev_bb=0),
-                GTOActionData(action="Raise", frequency=0, ev_bb=0),
-                GTOActionData(action="Fold", frequency=0, ev_bb=0),
-            ],
-            explanation="AI Agent 異常或回傳非法 JSON，系統回傳預設資料。",
+            user_action_correct=reply_json.get("user_action_correct", True),
+            ev_loss_bb=reply_json.get("ev_loss_bb", 0.0),
+            gto_matrix=gto_matrix,
+            explanation=reply_json.get("explanation", "")
         )
 
     def decide_opponent_action(self, game_state: GameState) -> UserAction:
