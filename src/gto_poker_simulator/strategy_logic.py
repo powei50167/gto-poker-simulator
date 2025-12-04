@@ -147,36 +147,73 @@ class StrategyLogic:
         if not reply_json:
             logger.warning("Falling back to default GTO feedback")
 
-            return GTOFeedback(
-                user_action_correct=True,
-                ev_loss_bb=0,
-                gto_matrix=[
-                    GTOActionData(action="Check", frequency=0, ev_bb=0),
-                    GTOActionData(action="Call", frequency=0, ev_bb=0),
-                    GTOActionData(action="Raise", frequency=0, ev_bb=0),
-                    GTOActionData(action="Fold", frequency=0, ev_bb=0),
-                ],
-                explanation="AI 回傳不合法 JSON，使用預設資料。"
-            )
+            return self._default_feedback()
 
         # ----------------------------
         # 將 JSON 組成物件
         # ----------------------------
+        try:
+            gto_matrix_raw = reply_json.get("gto_matrix", [])
+            allowed_actions = {"Check", "Call", "Raise", "Fold"}
 
-        gto_matrix = [
-            GTOActionData(
-                action=item["action"],
-                frequency=item["frequency"],
-                ev_bb=item["ev_bb"]
+            if not isinstance(gto_matrix_raw, list):
+                raise ValueError("gto_matrix should be a list")
+
+            gto_matrix: List[GTOActionData] = []
+            actions_seen = set()
+
+            for item in gto_matrix_raw:
+                if not isinstance(item, dict):
+                    raise ValueError("gto_matrix item should be a dict")
+
+                action = item.get("action")
+                frequency = item.get("frequency")
+                ev_bb = item.get("ev_bb")
+
+                if action not in allowed_actions:
+                    raise ValueError(f"Unexpected action: {action}")
+                if not isinstance(frequency, (int, float)):
+                    raise ValueError(f"Invalid frequency type for {action}")
+                if not isinstance(ev_bb, (int, float)):
+                    raise ValueError(f"Invalid ev_bb type for {action}")
+
+                actions_seen.add(action)
+                gto_matrix.append(
+                    GTOActionData(
+                        action=action,
+                        frequency=frequency,
+                        ev_bb=ev_bb,
+                    )
+                )
+
+            if actions_seen != allowed_actions:
+                raise ValueError("gto_matrix missing required actions")
+
+            return GTOFeedback(
+                user_action_correct=bool(reply_json.get("user_action_correct", True)),
+                ev_loss_bb=float(reply_json.get("ev_loss_bb", 0.0)),
+                gto_matrix=gto_matrix,
+                explanation=reply_json.get("explanation", "")
             )
-            for item in reply_json.get("gto_matrix", [])
-        ]
+        except Exception as e:
+            logger.warning(
+                "Invalid JSON structure from AI, using default feedback",
+                extra={"error": str(e)},
+            )
 
+            return self._default_feedback()
+
+    def _default_feedback(self) -> GTOFeedback:
         return GTOFeedback(
-            user_action_correct=reply_json.get("user_action_correct", True),
-            ev_loss_bb=reply_json.get("ev_loss_bb", 0.0),
-            gto_matrix=gto_matrix,
-            explanation=reply_json.get("explanation", "")
+            user_action_correct=True,
+            ev_loss_bb=0,
+            gto_matrix=[
+                GTOActionData(action="Check", frequency=0, ev_bb=0),
+                GTOActionData(action="Call", frequency=0, ev_bb=0),
+                GTOActionData(action="Raise", frequency=0, ev_bb=0),
+                GTOActionData(action="Fold", frequency=0, ev_bb=0),
+            ],
+            explanation="AI 回傳不合法 JSON，使用預設資料。"
         )
 
     def decide_opponent_action(self, game_state: GameState) -> UserAction:
