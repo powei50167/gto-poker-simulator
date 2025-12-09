@@ -33,9 +33,13 @@
             </header>
 
             <div id="table-view">
-                <div id="board-center">
+                <div class="table-badges">
+                    <span class="table-badge" id="table-size-badge">6 人桌</span>
+                    <span class="table-badge subtle">圓桌俯視 · 即時座位資訊</span>
+                </div>
+                <div id="board-center" class="board-panel">
                     <div class="board-meta">
-                        <div>階段: <span id="stage-label">PREFLOP</span></div>
+                        <div class="stage-label">階段 <span id="stage-label">PREFLOP</span></div>
                         <div class="table-id">牌桌 ID：<span id="table-id">--</span></div>
                     </div>
                     <div class="community-row">
@@ -44,8 +48,7 @@
                     <div id="pot-size">POT: $0</div>
                 </div>
 
-                <div id="player-slots-container">
-                </div>
+                <div id="player-slots-container"></div>
             </div>
             <section id="action-panel">
                 <p><span id="hand-status">輪到您行動。</span> (<span id="current-position">--</span>)</p>
