@@ -29,26 +29,22 @@ class StrategyLogic:
             self.client = None
 
     def evaluate_user_action(self, game_state: GameState, user_action: UserAction) -> GTOFeedback:
-        """
-        改寫後版本：
-        - 使用 response_format={"type": "json_object"} 強制模型回傳合法 JSON
-        - prompt 拆段降低混亂
-        - 保證 gto_matrix 結構統一
-        - 移除易出錯的 _parse_json_reply
-        """
-
         players = game_state.players
         action_position = game_state.action_position
         acting_player = next((p for p in players if p.position == action_position), None)
         hand = acting_player.hand if acting_player else []
         hero_stack = acting_player.chips if acting_player else 0
 
-        # 敘述牌局狀態
+        # ---------------------------------------------------------
+        # 狀態描述
+        # ---------------------------------------------------------
         state_desc = self._build_state_description(
             game_state, hand, include_action_log=True
         )
 
-        # 依據你的合法行動規則重新整理一次（簡化版）
+        # ---------------------------------------------------------
+        # 決定合法行動
+        # ---------------------------------------------------------
         stage = game_state.current_stage
         position = action_position
 
@@ -64,11 +60,67 @@ class StrategyLogic:
 
         legal_action_str = ", ".join([f'"{a}"' for a in legal_actions])
 
-        system_prompt = (
-            "你是一位頂尖的德州撲克 6-max 現金桌 GTO 教練，"
-            "必須嚴格依照 JSON schema 回覆，且不能產生任何額外文字。"
-        )
+        # ---------------------------------------------------------
+        # System Prompt（最終優化版）
+        # ---------------------------------------------------------
+        system_prompt = """
+    你是一位頂尖德州撲克 6-max 現金桌 GTO 教練。
+    你的任務是輸出穩定、合理、貼近 solver 風格的 JSON 評價。
 
+    【GTO 基本原則】
+    - UTG 不 limp、不寬 defend 3bet，4bet bluff 極少（僅限 A5s/A4s）。
+    - 對抗 3bet + cold call：22–99 幾乎必須 fold。
+    - 小口袋 set-mine 僅在單挑 + 有位置 + 深籌碼才成立。
+    - AA 在 A-high flop（3bet/4bet pot）為高頻 call，raise < 10%。
+    - solver 罕見的行動（例如垃圾牌 defend）頻率須接近 0。
+
+    【Preflop 防呆規則】
+    一、SB vs BTN open：
+    - J9o、T9o、T8o、98o、97o、87o、86o、76o 等 offsuit 垃圾牌必須 pure fold。
+    - 無 blocker、無 suited、無 high-card 的手牌不得出現正 EV。
+    - 允許 defend 僅限：J9s/T9s/98s/87s/76s、AJo、KQo、QJo、部分 suited Ax/Kx/Qx。
+
+    二、UTG / HJ / CO defend：
+    - 面對 3bet：所有 22–99（非 BB 小尺寸）純 fold。
+    - 不得用 offsuit 中低牌 call。
+    - 4bet bluff < 5%，且僅限 A5s/A4s。
+
+    三、SB 面對任意位置 open：
+    - 所有 offsuit 垃圾牌不得 call 或 raise。
+    - 若無 suited / blocker / broadway，EV 必須為負，頻率接近 0。
+
+    四、對抗 3bet + cold call：
+    - 所有 22–99 為 pure fold，不得給正 EV。
+    - 不得 4bet bluff（除 blocker 類）。
+
+    五、禁止虛構 preflop 均衡：
+    - 不可將 J9o、T8o、Q4o、K6o、A2o 等 hand 當作 defend 或 3bet。
+    - 若手牌無 blocker、無 suited、無牌力，Raise/Call EV 必須 < 0。
+
+    【EV 限制】
+    - Preflop 任一行動 EV 不得超過 ±0.5bb。
+    - Flop：EV 不得超過 ±0.5bb。
+    - Turn：EV 不得超過 ±1.0bb。
+    - River（非 all-in）：EV 不得超過 ±2.0bb。
+    - EV 差距（Raise vs Call）不得超過 0.3bb。
+    - 不得出現 +20bb、+40bb 等不合理 EV。
+
+    【頻率一致性】
+    - 最高 EV = 最高頻率。
+    - 若 Fold 為最佳，Fold 頻率 ≥ 90%。
+    - 若某行動 EV < Fold EV（=0 preflop），其頻率必須 = 0。
+
+    【不確定時的 fallback 策略】
+    - Preflop：Fold 為預設最佳（80–100%）。
+    - EV 採用小幅值（0.05 / 0.10 / 0.15）。
+    - Call 作為中性行動，Raise 為最低頻率。
+
+    請務必輸出完全合法 JSON，且禁止加入 JSON 以外的文字。
+    """
+
+        # ---------------------------------------------------------
+        # Context Prompt
+        # ---------------------------------------------------------
         context_prompt = f"""
     以下是當前牌局資訊：
 
@@ -80,41 +132,44 @@ class StrategyLogic:
 
     合法行動為：{legal_actions}
 
-    請根據 GTO 理論：
+    請依 GTO 理論：
     1. 判斷 Hero 行動是否合理
-    2. 計算相對於 GTO 的 EV 損失（可概略估算）
-    3. 提供每個行動 (Check / Call / Raise / Fold) 的 GTO 頻率 與 EV（非行動填 0）
+    2. 計算 EV Loss（最佳策略 EV - Hero EV）
+    3. 填入每個行動 (Check/Call/Raise/Fold) 的 frequency 與 EV（非法行動一律 0）
     """
 
+        # ---------------------------------------------------------
+        # JSON Schema
+        # ---------------------------------------------------------
         json_schema_prompt = f"""
-    請務必輸出完全符合以下 JSON 格式（不能加入註解、不能加入 ```）：
+    請輸出完全符合以下 JSON 格式（不能多字、不能加 ```）：
 
     {{
     "user_action_correct": true 或 false,
     "ev_loss_bb": 0,
     "gto_matrix": [
         {{"action": "Check", "frequency": 0, "ev_bb": 0}},
-        {{"action": "Call", "frequency": 0, "ev_bb": 0}},
+        {{"action": "Call",  "frequency": 0, "ev_bb": 0}},
         {{"action": "Raise", "frequency": 0, "ev_bb": 0}},
-        {{"action": "Fold", "frequency": 0, "ev_bb": 0}}
+        {{"action": "Fold",  "frequency": 0, "ev_bb": 0}}
     ],
     "explanation": "原因說明"
     }}
 
     重要規則：
     - 只能使用合法行動：{legal_action_str}
-    - 不合法行動的 frequency = 0 且 ev_bb = 0
-    - frequency 必須介於 0~1
-    - JSON 之外不能有任何文字
+    - frequency 必須 0–1
+    - JSON 之外不得輸出任何文字
     """
 
-        logger.info(
-            "OpenAI prompt for user action evaluation",
-            extra={"context": context_prompt, "schema": json_schema_prompt},
-        )
+        logger.info("OpenAI prompt for user action evaluation",
+                    extra={"context": context_prompt, "schema": json_schema_prompt})
 
         reply_json = {}
 
+        # ---------------------------------------------------------
+        # 呼叫 OpenAI
+        # ---------------------------------------------------------
         if self.api_key and self.client:
             try:
                 response = self.client.chat.completions.create(
@@ -122,44 +177,35 @@ class StrategyLogic:
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": context_prompt},
-                        {"role": "assistant", "content": json_schema_prompt},
+                        {"role": "user", "content": context_prompt + "\n" + json_schema_prompt}
                     ],
                 )
-
                 response_text = response.choices[0].message.content
                 reply_json = json.loads(response_text)
 
-                logger.info(
-                    "AI Generated JSON for user action evaluation",
-                    extra={"JSON": reply_json},
-                )
+                logger.info("AI Generated JSON for user action evaluation",
+                            extra={"JSON": reply_json})
 
             except Exception as e:
-                logger.error(
-                    "GPT JSON error in evaluate_user_action",
-                    extra={"error": str(e)},
-                )
+                logger.error("GPT JSON error in evaluate_user_action",
+                            extra={"error": str(e)})
 
-        # ----------------------------
-        # Fallback 機制（模型失敗時）
-        # ----------------------------
+        # ---------------------------------------------------------
+        # fallback
+        # ---------------------------------------------------------
         if not reply_json:
             logger.warning("Falling back to default GTO feedback")
-
             return self._default_feedback()
 
-        # ----------------------------
-        # 將 JSON 組成物件
-        # ----------------------------
+        # ---------------------------------------------------------
+        # normalize
+        # ---------------------------------------------------------
         try:
             gto_matrix, sanitized = self._normalize_gto_matrix(reply_json.get("gto_matrix", []))
 
             if sanitized:
-                logger.warning(
-                    "Sanitized AI gto_matrix output",
-                    extra={"raw": reply_json.get("gto_matrix", [])},
-                )
+                logger.warning("Sanitized AI gto_matrix output",
+                            extra={"raw": reply_json.get("gto_matrix", [])})
 
             return GTOFeedback(
                 user_action_correct=bool(reply_json.get("user_action_correct", True)),
@@ -167,17 +213,15 @@ class StrategyLogic:
                 gto_matrix=gto_matrix,
                 explanation=reply_json.get(
                     "explanation",
-                    "AI 回傳資料格式不完整，已自動補齊缺漏欄位。",
+                    "AI 回傳格式不完整，已自動補齊。"
                 ),
             )
+
         except Exception as e:
-            logger.warning(
-                "Invalid JSON structure from AI, using default feedback",
-                extra={"error": str(e)},
-            )
-
+            logger.warning("Invalid JSON structure from AI, using default feedback",
+                        extra={"error": str(e)})
             return self._default_feedback()
-
+    
     def _default_feedback(self) -> GTOFeedback:
         return GTOFeedback(
             user_action_correct=True,
@@ -203,7 +247,7 @@ class StrategyLogic:
             to_call = max(game_state.current_bet - acting_player.current_round_bet, 0)
 
         prompt = f"""
-你現在扮演德州撲克6人現金桌玩家，根據以下桌面資訊給出你的行動並回傳 JSON：
+你現在扮演德州撲克6人現金桌玩家，請根據gto策略分析以下桌面資訊給出你的行動並回傳 JSON：
 
 {self._build_state_description(game_state, acting_player.hand if acting_player else [])}
 剩餘籌碼：{acting_stack}
