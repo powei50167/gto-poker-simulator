@@ -146,7 +146,7 @@ function positionPlayerSlots() {
     // 圓心在 50% / 50%
     const centerPercent = 50;
     // 調整半徑百分比，使其更靠近圓桌邊緣
-    const radiusPercent = currentTableSize === 9 ? 50 : 46;
+    const radiusPercent = currentTableSize === 6 ? 75 : 65;
 
     currentSeatOrder.forEach(seat => {
         const slot = document.getElementById(`player-slot-seat${seat}`);
@@ -156,12 +156,27 @@ function positionPlayerSlots() {
         
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
+        let radius = radiusPercent;
 
+        // ⭐ 例如 seat1 是最上方 → 向圓心靠近 4%
+        if (seat === 1) {
+            radius -= 8;   // 想靠更多就改大，例如 6、8
+        }
+        if (seat === 2 || seat === 3) {
+            radius += 8;   // 向外擴 4%（可調 2~10）
+        }
+
+        if (seat === 5 || seat === 6) {
+            radius += 8;   // 向外擴 4%（可調 2~10）
+        }
+        if (seat === 4) {
+            radius -= 4;   // 向外擴 4%（可調 2~10）
+        }
         // 計算中心點座標 (使用百分比)
         // COS 配合 LEFT (X 軸)
-        const xPercent = centerPercent + radiusPercent * Math.cos(angleRad);
+        const xPercent = centerPercent + radius * Math.cos(angleRad);
         // SIN 配合 TOP (Y 軸) - 順時針角度
-        const yPercent = centerPercent + radiusPercent * Math.sin(angleRad);
+        const yPercent = centerPercent + radius * Math.sin(angleRad);
 
         // 設置 left/top (使用百分比)
         slot.style.left = `${xPercent}%`;
