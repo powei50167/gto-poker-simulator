@@ -55,6 +55,7 @@ function applyTableLayout(tableSize, seatOrderFromState = []) {
         : [...layout.seatOrder];
     currentSeatAngles = layout.seatAngles;
     updateTableToggleLabel();
+    updateTableBadge();
 }
 
 function updateTableToggleLabel() {
@@ -62,6 +63,13 @@ function updateTableToggleLabel() {
     if (!toggleBtn) return;
     const targetSize = currentTableSize === 9 ? 6 : 9;
     toggleBtn.textContent = `切換為 ${targetSize} 人桌`;
+}
+
+function updateTableBadge() {
+    const badge = document.getElementById('table-size-badge');
+    if (!badge) return;
+    const descriptor = currentTableSize === 9 ? '全環桌 · 9 人佈局' : '短桌 · 6 人佈局';
+    badge.textContent = `${currentTableSize} 人桌｜${descriptor}`;
 }
 
 
@@ -138,7 +146,7 @@ function positionPlayerSlots() {
     // 圓心在 50% / 50%
     const centerPercent = 50;
     // 調整半徑百分比，使其更靠近圓桌邊緣
-    const radiusPercent = currentTableSize === 9 ? 48 : 45;
+    const radiusPercent = currentTableSize === 9 ? 50 : 46;
 
     currentSeatOrder.forEach(seat => {
         const slot = document.getElementById(`player-slot-seat${seat}`);
@@ -200,7 +208,8 @@ function renderGameState(state) {
         state.community_cards.length
             ? state.community_cards.map(formatCard).join('')
             : '<span class="card-face placeholder">--</span>';
-    document.getElementById('stage-label').textContent = state.current_stage.toUpperCase();
+    const stageLabel = STAGE_LABELS[state.current_stage] || state.current_stage?.toUpperCase() || '--';
+    document.getElementById('stage-label').textContent = stageLabel;
     const tableIdEl = document.getElementById('table-id');
     if (tableIdEl) {
         tableIdEl.textContent = state.hand_id ? `#${state.hand_id}` : '尚未產生';
@@ -270,29 +279,49 @@ function renderGameState(state) {
         if (p) {
             // 活躍玩家
             const isTurn = p.position === state.action_position;
+            const isHero = p.name.toLowerCase() === 'hero';
 
             slotClass = p.is_active ? 'active' : 'folded';
             if (isTurn) {
                 slotClass += ' is-turn';
             }
+            if (isHero) {
+                slotClass += ' hero-seat';
+            }
 
             const handHtml = buildHandHtml(handToShow);
+            const statusPill = p.is_active
+                ? '<span class="status-pill in-hand">在局中</span>'
+                : '<span class="status-pill folded">已棄牌</span>';
+            const turnBadge = isTurn ? '<span class="turn-indicator">輪到此位</span>' : '';
+            const heroBadge = isHero ? '<span class="status-pill hero">Hero</span>' : '';
+
             slotContent = `
-                <div class="player-info">
-                    <strong>Seat ${p.seat_number}【${p.position}】</strong>  ${p.name}
-                   <div class="info-row">
-                        <span>籌碼: $${p.chips}</span>
-                        <span class="in-pot-badge">In Pot: $${p.in_pot}</span>
-                    </div>
+                <div class="seat-header">
+                    <div class="seat-label">Seat ${p.seat_number}</div>
+                    <div class="position-pill">${p.position}</div>
+                    ${heroBadge}
                 </div>
-                ${handHtml}
+                <div class="player-name-row">
+                    <span class="player-name">${p.name}</span>
+                    ${turnBadge}
+                </div>
+                <div class="stack-row">
+                    <span class="stack-chip">籌碼 $${p.chips}</span>
+                    <span class="stack-pot">進池 $${p.in_pot}</span>
+                </div>
+                <div class="hand-wrapper">${handHtml}</div>
+                <div class="status-row">${statusPill}</div>
             `;
         } else {
             // 閒置位置
             slotClass = 'idle';
             slotContent = `
-                <strong>Seat ${seat}</strong><br>
-                <span style="font-size:12px;">(空閒)</span>
+                <div class="seat-header">
+                    <div class="seat-label">Seat ${seat}</div>
+                    <div class="position-pill idle">未入座</div>
+                </div>
+                <div class="empty-seat">等待玩家</div>
             `;
         }
 

@@ -134,24 +134,63 @@ button:disabled {
 
 /* --- 牌桌狀態區 (圓桌化) --- */
 #table-view {
-    background-color: #006400; /* 綠色牌桌布 */
-    border-radius: 50%;
-    width: 600px; 
-    height: 600px; 
-    padding: 40px;
-    margin: 20px auto; 
     position: relative;
-    border: 5px solid #6b472e; 
-    box-sizing: border-box; 
+    width: min(95vw, 880px);
+    aspect-ratio: 1;
+    margin: 24px auto;
+    padding: 56px;
+    background: radial-gradient(circle at 50% 50%, #085d3b 0%, #0f3a27 55%, #0b2d1d 100%);
+    border-radius: 54%;
+    border: 10px solid #4c2e18;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), inset 0 0 40px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#table-view::after {
+    content: "";
+    position: absolute;
+    inset: 24px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.35);
+}
+
+.table-badges {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 3;
+}
+
+.table-badge {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 223, 145, 0.35);
+    color: #ffdf91;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.table-badge.subtle {
+    color: #cde7ff;
+    border-color: rgba(157, 208, 255, 0.35);
 }
 
 #board-center {
-    position: absolute; /* 公牌居中 */
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
     color: white;
+    z-index: 2;
 }
 
 #board-center div {
@@ -164,6 +203,26 @@ button:disabled {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    align-items: center;
+}
+
+.board-panel {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 18px;
+    border-radius: 18px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    min-width: 320px;
+}
+
+.stage-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 223, 145, 0.35);
 }
 
 .table-id {
@@ -237,53 +296,65 @@ button:disabled {
 }
 
 #pot-size {
-    font-size: 24px;
-    margin-top: 10px;
+    font-size: 22px;
+    margin-top: 12px;
     color: #ffe0b2;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    display: inline-block;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 224, 178, 0.35);
 }
 
 /* 玩家位置容器 */
 #player-slots-container {
-    position: relative; 
+    position: relative;
     width: 100%;
     height: 100%;
 }
 
 .player-slot {
-    background-color: rgba(0, 0, 0, 0.4);
-    border: 2px solid #ff9900;
-    border-radius: 5px;
-    padding: 10px;
-    text-align: center;
-    width: 150px;
-    min-height: 100px;
+    background: linear-gradient(160deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75));
+    border: 1px solid rgba(255, 223, 145, 0.35);
+    border-radius: 12px;
+    padding: 10px 12px;
+    text-align: left;
+    width: 180px;
+    min-height: 130px;
     font-size: 14px;
-    position: absolute; /* 必須用絕對定位作為圓周佈局的基底 */
-    transition: all 0.3s ease-in-out;
+    position: absolute;
+    transition: all 0.28s ease-in-out;
     box-sizing: border-box;
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(2px);
 }
 
 /* 閒置玩家（灰底） */
 .player-slot.idle {
-    background-color: #444444;
+    background: linear-gradient(160deg, rgba(68, 68, 68, 0.75), rgba(38, 38, 38, 0.95));
     color: #aaaaaa;
-    border: 2px dashed #666666;
-    opacity: 0.7;
+    border: 1px dashed #777777;
+    opacity: 0.9;
 }
 
 /* 棄牌玩家 */
 .player-slot.folded {
-    background-color: rgba(0, 0, 0, 0.8);
-    opacity: 0.4;
+    background-color: rgba(0, 0, 0, 0.65);
+    opacity: 0.65;
     border-color: #444;
 }
 
 /* 當前行動玩家 */
 .player-slot.is-turn {
-    background-color: #555500; 
-    border-color: #fff000;
-    box-shadow: 0 0 10px rgba(255, 255, 0, 0.9);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 250, 205, 0.25), rgba(85, 85, 0, 0.7));
+    border-color: #ffe066;
+    box-shadow: 0 0 18px rgba(255, 240, 0, 0.55), 0 12px 24px rgba(0, 0, 0, 0.35);
     color: white;
+}
+
+.player-slot.hero-seat {
+    border-color: #7fb4ff;
+    box-shadow: 0 0 14px rgba(111, 183, 255, 0.45), 0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
 /* --- 決策區 --- */
@@ -377,10 +448,125 @@ button:disabled {
     margin-top: 6px;
 }
 
-.player-info {
+.seat-header {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.seat-label {
+    font-weight: 700;
+    color: #ffdf91;
+    letter-spacing: 0.5px;
+}
+
+.position-pill {
+    padding: 4px 10px;
+    background: rgba(255, 223, 145, 0.12);
+    border: 1px solid rgba(255, 223, 145, 0.5);
+    border-radius: 999px;
+    font-size: 12px;
+    color: #ffdf91;
+}
+
+.position-pill.idle {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #cccccc;
+}
+
+.player-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 6px 0;
+}
+
+.player-name {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.turn-indicator {
+    background: linear-gradient(135deg, #ffd166, #ff9f1c);
+    color: #2b1a00;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.stack-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #e7e7e7;
+}
+
+.stack-chip, .stack-pot {
+    display: inline-flex;
+    align-items: center;
     gap: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.stack-pot {
+    border-color: rgba(255, 183, 77, 0.3);
+    color: #ffdf91;
+}
+
+.hand-wrapper {
+    margin-top: 8px;
+    display: flex;
+    justify-content: center;
+}
+
+.status-row {
+    margin-top: 10px;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.status-pill.in-hand {
+    background: rgba(127, 221, 148, 0.18);
+    color: #9ef0b8;
+    border-color: rgba(158, 240, 184, 0.55);
+}
+
+.status-pill.folded {
+    background: rgba(255, 255, 255, 0.04);
+    color: #cccccc;
+}
+
+.status-pill.hero {
+    background: linear-gradient(135deg, rgba(111, 183, 255, 0.2), rgba(111, 183, 255, 0.05));
+    color: #a9d0ff;
+    border-color: rgba(111, 183, 255, 0.5);
+}
+
+.empty-seat {
+    margin-top: 10px;
+    padding: 12px;
+    text-align: center;
+    color: #bbbbbb;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
 }
 
 /* 卡牌花色樣式 */
@@ -670,9 +856,9 @@ button:disabled {
     align-items: center;
     gap: 8px;          /* 籌碼 與 In Pot 之間的間距 */
     font-size: 14px;
-  }
-  
-  .in-pot-badge {
+}
+
+.in-pot-badge {
     display: inline-block;
     padding: 4px 10px;
     border: 1px solid #ffb74d;      /* 外框顏色 */
@@ -682,4 +868,31 @@ button:disabled {
     letter-spacing: 0.5px;
     /* 可選：字體顏色 */
     color: #ffb74d;
-  }
+}
+
+@media (max-width: 1100px) {
+    #table-view {
+        width: min(95vw, 760px);
+        padding: 40px;
+    }
+
+    .player-slot {
+        width: 160px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 780px) {
+    #table-view {
+        padding: 32px;
+    }
+
+    .table-badges {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .player-slot {
+        width: 148px;
+    }
+}
