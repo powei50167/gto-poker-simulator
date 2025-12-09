@@ -143,30 +143,47 @@ function setCustomHandAvailability(enabled) {
 
 // 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
 function positionPlayerSlots() {
-    // 圓心在 50% / 50%
-    const centerPercent = 50;
-    // 調整半徑百分比，使其更靠近圓桌邊緣
-    const radiusPercent = currentTableSize === 9 ? 50 : 46;
+    const table = document.getElementById('table-view');
+    const container = document.getElementById('player-slots-container');
 
+    if (!table || !container) return;
+
+    const rect = table.getBoundingClientRect();
+    const baseRadius = Math.min(rect.width, rect.height) / 2;
+
+    // 估算玩家卡片尺寸，避免外溢到牌桌外圍
+    const sampleSlot = document.querySelector('.player-slot');
+    const slotRect = sampleSlot?.getBoundingClientRect();
+    const slotHalfWidth = (slotRect?.width || 180) / 2;
+
+    const radiusPadding = currentTableSize === 9 ? 18 : 26;
+    let radius = baseRadius - slotHalfWidth - radiusPadding;
+
+    if (radius < baseRadius * 0.5) {
+        radius = baseRadius * 0.5;
+    }
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // 圓心在 50% / 50%
     currentSeatOrder.forEach(seat => {
         const slot = document.getElementById(`player-slot-seat${seat}`);
         if (!slot) return;
 
         let angleDeg = currentSeatAngles[seat] || 0;
-        
+
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
 
-        // 計算中心點座標 (使用百分比)
-        // COS 配合 LEFT (X 軸)
-        const xPercent = centerPercent + radiusPercent * Math.cos(angleRad);
-        // SIN 配合 TOP (Y 軸) - 順時針角度
-        const yPercent = centerPercent + radiusPercent * Math.sin(angleRad);
+        // 計算中心點座標 (使用像素值，因應 min(95vw, 550px) 的桌面寬度)
+        const x = centerX + radius * Math.cos(angleRad);
+        const y = centerY + radius * Math.sin(angleRad);
 
-        // 設置 left/top (使用百分比)
-        slot.style.left = `${xPercent}%`;
-        slot.style.top = `${yPercent}%`;
-        
+        // 設置 left/top (使用絕對像素值，避免在小寬度時溢出)
+        slot.style.left = `${x}px`;
+        slot.style.top = `${y}px`;
+
         // 使用 translate 抵消自身的 50% 寬高，實現精確居中
         slot.style.transform = `translate(-50%, -50%)`;
     });
@@ -717,6 +734,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (setHandBtn) {
         setHandBtn.addEventListener('click', submitCustomHand);
     }
+
+    window.addEventListener('resize', positionPlayerSlots);
 
     updateAnalysisButton();
     setCustomHandAvailability(false);
