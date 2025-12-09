@@ -7,18 +7,36 @@ let explanationCollapsed = true;
 let lastPlayersCache = [];
 let customHandPanelVisible = false;
 let customHandEnabled = false;
+let currentTableSize = 6;
+let currentSeatOrder = [];
+let currentSeatAngles = {};
 
-// 固定的 6 人牌桌座位 (1 號在最上方、4 號在最下方)
-const SEAT_ORDER = [1, 2, 3, 4, 5, 6];
-
-// 預定義的座位角度 (CSS 座標系：0 度在右，順時針增加)
-const SEAT_ANGLES_CSS = {
-    1: 270, // 頂部
-    2: 330, // 右上
-    3: 30,  // 右下
-    4: 90,  // 底部
-    5: 150, // 左下
-    6: 210  // 左上
+const TABLE_LAYOUTS = {
+    6: {
+        seatOrder: [1, 2, 3, 4, 5, 6],
+        seatAngles: {
+            1: 270, // 頂部
+            2: 330, // 右上
+            3: 30,  // 右下
+            4: 90,  // 底部
+            5: 150, // 左下
+            6: 210  // 左上
+        },
+    },
+    9: {
+        seatOrder: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        seatAngles: {
+            1: 270, // 頂部
+            2: 310, // 右上
+            3: 350, // 右側偏上
+            4: 30,  // 右側偏下
+            5: 70,  // 右下
+            6: 90,  // 底部偏右 (Hero)
+            7: 150, // 左下
+            8: 200, // 左側偏下
+            9: 240  // 左側偏上
+        },
+    },
 };
 
 const STAGE_LABELS = {
@@ -28,6 +46,23 @@ const STAGE_LABELS = {
     river: '河牌',
     showdown: '攤牌'
 };
+
+function applyTableLayout(tableSize, seatOrderFromState = []) {
+    const layout = TABLE_LAYOUTS[tableSize] || TABLE_LAYOUTS[6];
+    currentTableSize = layout === TABLE_LAYOUTS[tableSize] ? tableSize : 6;
+    currentSeatOrder = Array.isArray(seatOrderFromState) && seatOrderFromState.length
+        ? seatOrderFromState
+        : [...layout.seatOrder];
+    currentSeatAngles = layout.seatAngles;
+    updateTableToggleLabel();
+}
+
+function updateTableToggleLabel() {
+    const toggleBtn = document.getElementById('toggle-table-size-btn');
+    if (!toggleBtn) return;
+    const targetSize = currentTableSize === 9 ? 6 : 9;
+    toggleBtn.textContent = `切換為 ${targetSize} 人桌`;
+}
 
 
 // --- 輔助函數 ---
@@ -101,15 +136,15 @@ function setCustomHandAvailability(enabled) {
 // 函數：根據位置計算圓形佈局的座標 (使用百分比和位移)
 function positionPlayerSlots() {
     // 圓心在 50% / 50%
-    const centerPercent = 50; 
+    const centerPercent = 50;
     // 調整半徑百分比，使其更靠近圓桌邊緣
-    const radiusPercent = 45; 
-    
-    SEAT_ORDER.forEach(seat => {
+    const radiusPercent = currentTableSize === 9 ? 48 : 45;
+
+    currentSeatOrder.forEach(seat => {
         const slot = document.getElementById(`player-slot-seat${seat}`);
         if (!slot) return;
 
-        let angleDeg = SEAT_ANGLES_CSS[seat] || 0;
+        let angleDeg = currentSeatAngles[seat] || 0;
         
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
@@ -157,6 +192,7 @@ function updateHandSelectOptions(players) {
 // --- 渲染遊戲狀態 (修改為固定 6 個位置的渲染邏輯) ---
 function renderGameState(state) {
     lastPlayersCache = state.players || [];
+    applyTableLayout(state.table_size || currentTableSize, state.seat_order);
     setCustomHandAvailability(customHandEnabled && !state.hand_over);
     updateHandSelectOptions(lastPlayersCache);
     document.getElementById('pot-size').textContent = `POT: $${state.pot_size}`;
@@ -221,7 +257,7 @@ function renderGameState(state) {
     let playerHtml = '';
 
     // 遍歷所有固定位置，渲染插槽
-    SEAT_ORDER.forEach(seat => {
+    currentSeatOrder.forEach(seat => {
         const p = activePlayersMap.get(seat);
         
         let slotContent;
@@ -541,6 +577,36 @@ async function startNewHand() {
     }
 }
 
+async function switchTableSize() {
+    const targetSize = currentTableSize === 9 ? 6 : 9;
+
+    resetFeedbackDisplay();
+    lastAnalysisAvailable = false;
+    updateAnalysisButton();
+    setCustomHandAvailability(true);
+
+    try {
+        const response = await fetch(`${API_BASE}/table_size`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_size: targetSize }),
+        });
+
+        const state = await response.json();
+        if (!response.ok) {
+            alert(`切換牌桌失敗：${state.detail || '請稍後再試。'}`);
+            return;
+        }
+
+        renderGameState(state);
+    } catch (error) {
+        console.error('Error switching table size:', error);
+        alert('無法切換牌桌人數，請稍後再試。');
+    } finally {
+        updateAnalysisButton();
+    }
+}
+
 function toggleExplanation() {
     const explanationBox = document.getElementById('error-explanation');
     const toggleBtn = document.getElementById('toggle-explanation-btn');
@@ -554,9 +620,15 @@ function toggleExplanation() {
 
 // --- 初始化和事件監聽 (保持不變) ---
 document.addEventListener('DOMContentLoaded', () => {
+    applyTableLayout(6);
     document.getElementById('start-hand-btn').addEventListener('click', startNewHand);
     document.getElementById('analyze-last-btn').addEventListener('click', fetchLastFeedback);
     document.getElementById('toggle-explanation-btn').addEventListener('click', toggleExplanation);
+
+    const toggleTableBtn = document.getElementById('toggle-table-size-btn');
+    if (toggleTableBtn) {
+        toggleTableBtn.addEventListener('click', switchTableSize);
+    }
 
     const toggleCustomHandBtn = document.getElementById('open-custom-hand-btn');
     if (toggleCustomHandBtn) {

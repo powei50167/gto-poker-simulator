@@ -13,6 +13,7 @@ from .schemas import (
     AIActionResponse,
     ActionProcessResponse,
     SetHandRequest,
+    TableSizeRequest,
     HandHistorySummary,
     HandHistoryRecord,
 )
@@ -21,10 +22,45 @@ app = FastAPI()
 logger = get_logger(__name__)
 
 # 初始化核心組件
-players_init = {'hero': 10000, 'Player2': 10000, 'Player3': 10000,
-                'Player4': 10000, 'Player5': 10000, 'Player6': 10000}
+TABLE_CONFIGS: dict[int, dict[str, object]] = {
+    6: {
+        "positions": ['🅱️BTN', 'SB', 'BB', 'UTG', 'MP', 'CO'],
+        "seat_order": [1, 2, 3, 4, 5, 6],
+        "hero_seat": 4,
+    },
+    9: {
+        "positions": ['🅱️BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO'],
+        "seat_order": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        "hero_seat": 6,
+    },
+}
+
 history_repo = HistoryRepository()
-game_table = Table(players_init, big_blind=100, history_repo=history_repo)
+
+
+def _build_players(table_size: int) -> dict[str, int]:
+    stacks = {'hero': 10000}
+    for i in range(2, table_size + 1):
+        stacks[f'Player{i}'] = 10000
+    return stacks
+
+
+def _create_table(table_size: int) -> Table:
+    if table_size not in TABLE_CONFIGS:
+        raise ValueError("目前僅支援 6 人或 9 人桌。")
+    config = TABLE_CONFIGS[table_size]
+    return Table(
+        _build_players(table_size),
+        big_blind=100,
+        history_repo=history_repo,
+        positions=config["positions"],
+        seat_order=config["seat_order"],
+        hero_seat=config["hero_seat"],
+    )
+
+
+current_table_size = 6
+game_table = _create_table(current_table_size)
 gto_logic = StrategyLogic()
 last_user_action_context: dict | None = None
 
@@ -82,6 +118,33 @@ async def start_new_hand():
     logger.info("New hand started", extra={"button_index": game_table.button_index})
     _auto_play_until_hero()
     # 返回新的狀態
+    return game_table.get_state_for_frontend()
+
+
+@app.post("/api/table_size", response_model=GameState)
+async def switch_table_size(request: TableSizeRequest):
+    """切換牌桌人數並重新開始新牌局。"""
+    global game_table, last_user_action_context, current_table_size
+
+    if request.table_size not in TABLE_CONFIGS:
+        raise HTTPException(status_code=400, detail="目前僅支援 6 人或 9 人桌。")
+
+    try:
+        game_table = _create_table(request.table_size)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    current_table_size = request.table_size
+    last_user_action_context = None
+    game_table.start_hand()
+    logger.info(
+        "Table size switched",
+        extra={
+            "table_size": request.table_size,
+            "button_index": game_table.button_index,
+        },
+    )
+    _auto_play_until_hero()
     return game_table.get_state_for_frontend()
 
 @app.get("/api/state", response_model=GameState)
