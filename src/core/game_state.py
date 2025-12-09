@@ -52,9 +52,9 @@ class Player:
         }
 
 class Table:
-    POSITIONS = ['🅱️BTN', 'SB', 'BB', 'UTG', 'MP', 'CO']
-    HERO_SEAT = 4
-    SEAT_ORDER = [1, 2, 3, 4, 5, 6]
+    DEFAULT_POSITIONS = ['🅱️BTN', 'SB', 'BB', 'UTG', 'MP', 'CO']
+    DEFAULT_HERO_SEAT = 4
+    DEFAULT_SEAT_ORDER = [1, 2, 3, 4, 5, 6]
     RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
     RANK_VALUE = {rank: idx for idx, rank in enumerate(RANK_ORDER)}
 
@@ -63,6 +63,10 @@ class Table:
         players_data: Dict[str, int],
         big_blind: int = 100,
         history_repo: HistoryRepository | None = None,
+        *,
+        positions: list[str] | None = None,
+        seat_order: list[int] | None = None,
+        hero_seat: int | None = None,
     ):
         self.big_blind = big_blind
         self.initial_stacks = dict(players_data)
@@ -83,6 +87,19 @@ class Table:
         self.history_repo = history_repo or HistoryRepository()
         self.hand_history_recorded = False
         self.current_hand_id: int | None = None
+
+        self.positions = positions or self.DEFAULT_POSITIONS
+        self.seat_order = seat_order or self.DEFAULT_SEAT_ORDER
+        self.hero_seat = hero_seat or self.DEFAULT_HERO_SEAT
+
+        if self.hero_seat not in self.seat_order:
+            self.hero_seat = self.seat_order[len(self.seat_order) // 2]
+
+        if len(self.positions) < len(self.players):
+            raise ValueError("位置標籤數量必須與玩家數量相同或更多。")
+
+        if len(self.seat_order) < len(self.players):
+            raise ValueError("座位數量不足以容納所有玩家。")
 
     def _build_deck(self) -> List[Card]:
         ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -113,13 +130,13 @@ class Table:
             p.hand = []
 
     def _assign_seats(self):
-        """將玩家分配到 1-6 號座位，Hero 固定在 4 號。"""
+        """將玩家分配到預設座位，Hero 固定在預設座位號。"""
         hero_player = self.get_hero()
-        available_seats = [seat for seat in self.SEAT_ORDER if seat != self.HERO_SEAT]
+        available_seats = [seat for seat in self.seat_order if seat != self.hero_seat]
         random.shuffle(available_seats)
 
         if hero_player:
-            hero_player.seat_number = self.HERO_SEAT
+            hero_player.seat_number = self.hero_seat
 
         other_players = [p for p in self.players if p is not hero_player]
         for p, seat in zip(other_players, available_seats):
@@ -127,13 +144,13 @@ class Table:
 
     def _rotated_positions(self, hero_pos: str) -> List[str]:
         """依照座位順序，從 Hero 的位置開始循環分配其餘位置。"""
-        start = self.POSITIONS.index(hero_pos)
-        return self.POSITIONS[start:] + self.POSITIONS[:start]
+        start = self.positions.index(hero_pos)
+        return self.positions[start:] + self.positions[:start]
 
     def _seat_sequence_from_hero(self) -> List[int]:
-        hero_seat = self.HERO_SEAT
-        start_idx = self.SEAT_ORDER.index(hero_seat)
-        return self.SEAT_ORDER[start_idx:] + self.SEAT_ORDER[:start_idx]
+        hero_seat = self.hero_seat
+        start_idx = self.seat_order.index(hero_seat)
+        return self.seat_order[start_idx:] + self.seat_order[:start_idx]
 
     def _player_in_seat(self, seat_number: int) -> Player | None:
         return next((p for p in self.players if p.seat_number == seat_number), None)
@@ -141,7 +158,7 @@ class Table:
     def _assign_positions(self):
         """隨機賦予 Hero 任意位置，並按座位順序分配剩餘位置。"""
         hero_player = self.get_hero()
-        hero_position = random.choice(self.POSITIONS)
+        hero_position = random.choice(self.positions)
 
         ordered_positions = self._rotated_positions(hero_position)
         seats_in_order = self._seat_sequence_from_hero()
@@ -156,11 +173,11 @@ class Table:
         # 找出指定位置的座位號
         start_seat = next(
             (p.seat_number for p in self.players if p.position == position),
-            self.HERO_SEAT  # 如果沒找到則預設用 HERO_SEAT
+            self.hero_seat  # 如果沒找到則預設用 HERO_SEAT
         )
-        start_idx = self.SEAT_ORDER.index(start_seat)
+        start_idx = self.seat_order.index(start_seat)
         # 從該座位開始旋轉
-        return self.SEAT_ORDER[start_idx:] + self.SEAT_ORDER[:start_idx]
+        return self.seat_order[start_idx:] + self.seat_order[:start_idx]
 
     def _player_by_position(self, position: str) -> Player | None:
         return next((p for p in self.players if p.position == position), None)
@@ -213,7 +230,7 @@ class Table:
             "Hand initialized",
             extra={
                 "button_index": self.button_index,
-                "hero_seat": self.HERO_SEAT,
+                "hero_seat": self.hero_seat,
                 "positions": {p.name: p.position for p in self.players},
             },
         )
@@ -760,6 +777,8 @@ class Table:
             'action_log': self.action_log,
             'hand_result': self.hand_result,
             'hand_id': self.current_hand_id,
+            'table_size': len(self.seat_order),
+            'seat_order': self.seat_order,
         }
 
     def set_player_hand(self, player_name: str, card_codes: List[str]):
