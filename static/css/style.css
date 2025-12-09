@@ -135,7 +135,7 @@ button:disabled {
 /* --- 牌桌狀態區 (圓桌化) --- */
 #table-view {
     position: relative;
-    width: min(95vw, 880px);
+    width: min(95vw, 550px);
     aspect-ratio: 1;
     margin: 24px auto;
     padding: 56px;
@@ -144,7 +144,7 @@ button:disabled {
     border: 10px solid #4c2e18;
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), inset 0 0 40px rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
 }
 
 #table-view::after {
@@ -896,3 +896,4 @@ button:disabled {
         width: 148px;
     }
 }
+
