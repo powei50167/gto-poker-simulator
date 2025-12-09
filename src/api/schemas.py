@@ -57,6 +57,8 @@ class GameState(BaseModel):
     action_log: List[ActionLogEntry] = []
     hand_result: HandResult | None = None
     hand_id: int | None = None
+    table_size: int
+    seat_order: List[int]
 
 class UserAction(BaseModel):
     """用戶從前端發送的行動請求"""
@@ -68,6 +70,11 @@ class SetHandRequest(BaseModel):
     """手動設定玩家手牌的請求"""
     player_name: str
     cards: List[str]
+
+
+class TableSizeRequest(BaseModel):
+    """切換牌桌人數設定的請求"""
+    table_size: int
 
 
 class AIActionResponse(BaseModel):
