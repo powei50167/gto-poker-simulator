@@ -13,18 +13,17 @@ body {
 #app-container {
     display: flex;
     width: 100%;
-    max-width: 1400px;
-    margin: 20px auto;
+    max-width: 1300px;
+    margin: 0 auto;
     background-color: #2c2c2c;
     border-radius: 10px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    margin: 0 auto; /* 移除下推空間 */
     overflow: hidden; /* 防止子元素外溢 */
 }
 
 main {
     flex: 3;
-    padding: 30px;
+    padding: 20px;
 }
 
 aside {
@@ -135,22 +134,22 @@ button:disabled {
 /* --- 牌桌狀態區 (圓桌化) --- */
 #table-view {
     position: relative;
-    width: min(95vw, 880px);
+    width: clamp(520px, 78vw, 760px);
     aspect-ratio: 1;
-    margin: 24px auto;
-    padding: 56px;
+    margin: 16px auto;
+    padding: 44px;
     background: radial-gradient(circle at 50% 50%, #085d3b 0%, #0f3a27 55%, #0b2d1d 100%);
     border-radius: 54%;
-    border: 10px solid #4c2e18;
+    border: 8px solid #4c2e18;
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), inset 0 0 40px rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
 }
 
 #table-view::after {
     content: "";
     position: absolute;
-    inset: 24px;
+    inset: 20px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.08);
     pointer-events: none;
@@ -198,7 +197,7 @@ button:disabled {
 }
 
 #board-center .board-meta {
-    font-size: 18px;
+    font-size: 16px;
     letter-spacing: 1px;
     display: flex;
     flex-direction: column;
@@ -209,10 +208,10 @@ button:disabled {
 .board-panel {
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 16px 18px;
+    padding: 14px 16px;
     border-radius: 18px;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    min-width: 320px;
+    min-width: 280px;
 }
 
 .stage-label {
@@ -296,7 +295,7 @@ button:disabled {
 }
 
 #pot-size {
-    font-size: 22px;
+    font-size: 20px;
     margin-top: 12px;
     color: #ffe0b2;
     padding: 6px 12px;
@@ -317,11 +316,11 @@ button:disabled {
     background: linear-gradient(160deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75));
     border: 1px solid rgba(255, 223, 145, 0.35);
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: left;
-    width: 180px;
-    min-height: 130px;
-    font-size: 14px;
+    width: 160px;
+    min-height: 115px;
+    font-size: 13px;
     position: absolute;
     transition: all 0.28s ease-in-out;
     box-sizing: border-box;
@@ -430,9 +429,9 @@ button:disabled {
 }
 
 #player-slots-container .card-slot {
-    width: 60px;
-    height: 72px;
-    font-size: 30px;
+    width: 56px;
+    height: 66px;
+    font-size: 28px;
 }
 
 .card-slot.small {
