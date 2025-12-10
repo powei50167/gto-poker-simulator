@@ -16,6 +16,10 @@ const scenarioHandSelection = {
     activeInputId: 'scenario-hero-hand',
 };
 
+function getScenarioSelectionLimit(targetInputId = scenarioHandSelection.activeInputId) {
+    return targetInputId === 'scenario-community' ? 5 : 2;
+}
+
 const TABLE_LAYOUTS = {
     6: {
         seatOrder: [1, 2, 3, 4, 5, 6],
@@ -608,12 +612,13 @@ function syncScenarioHandInput(applyToInput = true) {
 function toggleScenarioCard(rank) {
     const suit = scenarioHandSelection.activeSuit || 's';
     const card = `${rank}${suit}`;
+    const limit = getScenarioSelectionLimit();
 
     const existingIndex = scenarioHandSelection.selectedCards.indexOf(card);
     if (existingIndex !== -1) {
         scenarioHandSelection.selectedCards.splice(existingIndex, 1);
     } else {
-        if (scenarioHandSelection.selectedCards.length >= 2) {
+        while (scenarioHandSelection.selectedCards.length >= limit) {
             scenarioHandSelection.selectedCards.shift();
         }
         scenarioHandSelection.selectedCards.push(card);
@@ -623,7 +628,8 @@ function toggleScenarioCard(rank) {
 }
 
 function setScenarioHandFromInput(inputValue, targetInput = getActiveHandInput()) {
-    const parsed = parseCardsFromInput(inputValue).slice(0, 2);
+    const limit = getScenarioSelectionLimit(targetInput?.id);
+    const parsed = parseCardsFromInput(inputValue).slice(0, limit);
     if (parsed.length) {
         const lastSuit = parsed[parsed.length - 1].slice(-1);
         scenarioHandSelection.activeSuit = lastSuit || scenarioHandSelection.activeSuit;
@@ -636,7 +642,8 @@ function setScenarioHandFromInput(inputValue, targetInput = getActiveHandInput()
 function setScenarioActiveTarget(targetInput) {
     if (!targetInput || !targetInput.id) return;
     scenarioHandSelection.activeInputId = targetInput.id;
-    const parsed = parseCardsFromInput(targetInput.value).slice(0, 2);
+    const limit = getScenarioSelectionLimit(targetInput.id);
+    const parsed = parseCardsFromInput(targetInput.value).slice(0, limit);
     scenarioHandSelection.selectedCards = parsed;
     if (parsed.length) {
         const lastSuit = parsed[parsed.length - 1].slice(-1);
@@ -1053,6 +1060,15 @@ document.addEventListener('DOMContentLoaded', () => {
         heroHandInput.addEventListener('input', (event) => {
             setScenarioActiveTarget(heroHandInput);
             setScenarioHandFromInput(event.target.value, heroHandInput);
+        });
+    }
+
+    const communityInput = document.getElementById('scenario-community');
+    if (communityInput) {
+        communityInput.addEventListener('focus', () => setScenarioActiveTarget(communityInput));
+        communityInput.addEventListener('input', (event) => {
+            setScenarioActiveTarget(communityInput);
+            setScenarioHandFromInput(event.target.value, communityInput);
         });
     }
 
