@@ -16,6 +16,10 @@ from .schemas import (
     TableSizeRequest,
     HandHistorySummary,
     HandHistoryRecord,
+    CardModel,
+    PlayerState,
+    ActionLogEntry,
+    ScenarioEvaluateRequest,
 )
 
 app = FastAPI()
@@ -65,6 +69,20 @@ gto_logic = StrategyLogic()
 last_user_action_context: dict | None = None
 
 
+def _parse_card_str(card: str) -> CardModel:
+    """將簡短字串（如 As）轉換為 CardModel。"""
+
+    if len(card) != 2:
+        raise ValueError(f"牌面格式錯誤：{card}")
+
+    rank = card[0].upper()
+    suit = card[1].lower()
+    if suit not in {"s", "h", "d", "c"}:
+        raise ValueError(f"未知花色：{card}")
+
+    return CardModel(rank=rank, suit=suit)
+
+
 def _auto_play_until_hero():
     """自動處理非 Hero 玩家行動，直到輪到 Hero 或牌局結束。"""
     actions = []
@@ -99,6 +117,73 @@ def _auto_play_until_hero():
             break
 
     return actions
+
+
+def _build_scenario_state(request: ScenarioEvaluateRequest) -> GameState:
+    """根據情境分析輸入拼裝 GameState，以便沿用 evaluate_user_action。"""
+
+    seat_number = 1
+    hero_hand = [_parse_card_str(c) for c in request.hero_hand]
+    players: list[PlayerState] = [
+        PlayerState(
+            name="Hero",
+            position=request.hero_position,
+            seat_number=seat_number,
+            chips=10000,
+            in_pot=0,
+            current_round_bet=0,
+            is_active=True,
+            hand=hero_hand,
+        )
+    ]
+
+    for opp in request.opponents:
+        seat_number += 1
+        players.append(
+            PlayerState(
+                name=opp.name,
+                position=opp.position,
+                seat_number=seat_number,
+                chips=10000,
+                in_pot=0,
+                current_round_bet=0,
+                is_active=True,
+                hand=[_parse_card_str(c) for c in opp.hand] if opp.hand else [],
+            )
+        )
+
+    community_cards = [_parse_card_str(c) for c in request.community_cards]
+    position_to_seat = {player.position: player.seat_number for player in players}
+
+    action_log = [
+        ActionLogEntry(
+            name=line.name,
+            position=line.position,
+            seat_number=position_to_seat.get(line.position, 0),
+            action=line.action,
+            stage=line.stage,
+            amount=line.amount,
+        )
+        for line in request.action_lines
+    ]
+
+    table_size = len(players)
+
+    return GameState(
+        pot_size=0,
+        community_cards=community_cards,
+        action_position=request.hero_position,
+        players=players,
+        current_bet=0,
+        current_stage=request.stage,
+        hand_over=False,
+        opponent_hands=[],
+        action_log=action_log,
+        hand_result=None,
+        hand_id=None,
+        table_size=table_size,
+        seat_order=list(range(1, table_size + 1)),
+    )
 
 # 定義靜態文件路徑
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
@@ -226,6 +311,28 @@ async def analyze_last_action():
     logger.info(
         "On-demand GTO analysis generated",
         extra={"stage": game_table.current_stage},
+    )
+
+    return feedback
+
+
+@app.post("/api/scenario_evaluate", response_model=GTOFeedback)
+async def evaluate_custom_scenario(request: ScenarioEvaluateRequest):
+    """接收情境分析輸入並返回 evaluate_user_action 的結果。"""
+
+    try:
+        scenario_state = _build_scenario_state(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    feedback = gto_logic.evaluate_user_action(
+        game_state=scenario_state,
+        user_action=request.hero_action,
+    )
+
+    logger.info(
+        "Scenario evaluation generated",
+        extra={"stage": request.stage, "hero_position": request.hero_position},
     )
 
     return feedback

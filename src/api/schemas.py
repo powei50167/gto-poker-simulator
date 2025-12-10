@@ -66,6 +66,33 @@ class UserAction(BaseModel):
     amount: int = 0  # 僅 Bet/Raise 時需要，代表總投入的金額
 
 
+class ScenarioOpponent(BaseModel):
+    """情境分析中對手的基本資訊"""
+    name: str
+    position: str
+    hand: List[str] = []
+
+
+class ScenarioActionLine(BaseModel):
+    """情境分析中的行動紀錄"""
+    stage: str
+    name: str
+    position: str
+    action: str
+    amount: int = 0
+
+
+class ScenarioEvaluateRequest(BaseModel):
+    """情境分析請求結構"""
+    hero_hand: List[str]
+    hero_position: str
+    hero_action: UserAction
+    stage: str
+    community_cards: List[str] = []
+    opponents: List[ScenarioOpponent] = []
+    action_lines: List[ScenarioActionLine] = []
+
+
 class SetHandRequest(BaseModel):
     """手動設定玩家手牌的請求"""
     player_name: str
