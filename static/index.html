@@ -139,6 +139,7 @@
                                 <div class="scenario-subfield">
                                     <label for="scenario-action-type">Hero 行動</label>
                                     <select id="scenario-action-type">
+                                        <option value="AllIn">AllIn</option>
                                         <option value="Check">Check</option>
                                         <option value="Call">Call</option>
                                         <option value="Raise">Raise</option>
@@ -190,10 +191,12 @@
                         <p class="eyebrow">行動線 (每行格式：位置 行動 金額)</p>
                         <div class="action-textareas">
                             <label>翻前
-                                <textarea id="scenario-preflop-actions" placeholder="BTN Raise 250\nBB Call 250"></textarea>
+                                <textarea id="scenario-preflop-actions" placeholder="BTN Raise 250 
+                                BB Call 250"></textarea>
                             </label>
                             <label>翻牌
-                                <textarea id="scenario-flop-actions" placeholder="SB Check\nBTN Bet 400"></textarea>
+                                <textarea id="scenario-flop-actions" placeholder="SB Check
+                                BTN Bet 400"></textarea>
                             </label>
                             <label>轉牌
                                 <textarea id="scenario-turn-actions" placeholder="BTN Bet 800"></textarea>
