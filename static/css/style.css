@@ -906,3 +906,89 @@ button:disabled {
     display: none !important;
 }
 
+#scenario-panel {
+    margin-top: 16px;
+}
+
+.scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.scenario-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.scenario-field input,
+.scenario-field select {
+    width: 100%;
+}
+
+.scenario-opponents {
+    margin-top: 12px;
+    border-top: 1px solid #ececec;
+    padding-top: 12px;
+}
+
+.scenario-opponents .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.opponent-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f9fafb;
+}
+
+.opponent-row input,
+.opponent-row select {
+    width: 100%;
+}
+
+.scenario-actions {
+    margin-top: 12px;
+    border-top: 1px solid #ececec;
+    padding-top: 12px;
+}
+
+.action-textareas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.action-textareas label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+    gap: 6px;
+}
+
+.action-textareas textarea {
+    min-height: 90px;
+}
+
+.scenario-footer {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-note {
+    color: #475467;
+    font-size: 0.95em;
+}
+

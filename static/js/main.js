@@ -47,6 +47,10 @@ const STAGE_LABELS = {
     showdown: '攤牌'
 };
 
+const POSITION_OPTIONS = [
+    'BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'LJ', 'HJ', 'CO'
+];
+
 function applyTableLayout(tableSize, seatOrderFromState = []) {
     const layout = TABLE_LAYOUTS[tableSize] || TABLE_LAYOUTS[6];
     currentTableSize = layout === TABLE_LAYOUTS[tableSize] ? tableSize : 6;
@@ -466,6 +470,153 @@ function normalizeCardInput(value) {
     return trimmed[0].toUpperCase() + trimmed[1].toLowerCase();
 }
 
+function buildPositionOptions(selectedValue = '') {
+    return POSITION_OPTIONS.map(pos => `
+        <option value="${pos}" ${selectedValue === pos ? 'selected' : ''}>${pos}</option>
+    `).join('');
+}
+
+function createOpponentRow(index = 1) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'opponent-row';
+    wrapper.innerHTML = `
+        <div>
+            <label>對手名稱</label>
+            <input type="text" class="opponent-name" placeholder="Villain${index}">
+        </div>
+        <div>
+            <label>位置</label>
+            <select class="opponent-position">${buildPositionOptions()}</select>
+        </div>
+        <div>
+            <label>手牌 (可空白)</label>
+            <input type="text" class="opponent-hand" placeholder="9h 9s">
+        </div>
+    `;
+    return wrapper;
+}
+
+function parseCardsFromInput(inputValue) {
+    const tokens = (inputValue || '')
+        .split(/\s+/)
+        .map(normalizeCardInput)
+        .filter(Boolean);
+    return tokens;
+}
+
+function parseActionLines(textValue, stage, positionNameMap) {
+    const lines = (textValue || '').split(/\n+/).map(l => l.trim()).filter(Boolean);
+    return lines.map(line => {
+        const parts = line.split(/\s+/);
+        const position = parts[0] || '';
+        const action = parts[1] || '';
+        const amount = parseInt(parts[2]) || 0;
+        return {
+            stage,
+            position,
+            name: positionNameMap.get(position) || position || 'Villain',
+            action,
+            amount,
+        };
+    });
+}
+
+function collectScenarioPayload() {
+    const heroHandInput = document.getElementById('scenario-hero-hand');
+    const heroPositionSelect = document.getElementById('scenario-hero-position');
+    const stageSelect = document.getElementById('scenario-stage');
+    const communityInput = document.getElementById('scenario-community');
+    const actionTypeSelect = document.getElementById('scenario-action-type');
+    const actionAmountInput = document.getElementById('scenario-action-amount');
+
+    if (!heroHandInput || !heroPositionSelect || !stageSelect || !actionTypeSelect || !actionAmountInput) {
+        throw new Error('情境表單載入失敗，請重新整理頁面。');
+    }
+
+    const heroHand = parseCardsFromInput(heroHandInput.value);
+    if (heroHand.length !== 2) {
+        throw new Error('Hero 手牌請輸入兩張牌，例如：As Kd');
+    }
+
+    const heroPosition = heroPositionSelect.value;
+    const stage = stageSelect.value;
+    const communityCards = parseCardsFromInput(communityInput ? communityInput.value : '');
+
+    const opponents = [];
+    const opponentRows = document.querySelectorAll('.opponent-row');
+    opponentRows.forEach((row, idx) => {
+        const nameInput = row.querySelector('.opponent-name');
+        const positionSelect = row.querySelector('.opponent-position');
+        const handInput = row.querySelector('.opponent-hand');
+
+        if (!nameInput || !positionSelect || !handInput) return;
+
+        const name = nameInput.value.trim() || `Villain${idx + 1}`;
+        const position = positionSelect.value;
+        const hand = parseCardsFromInput(handInput.value);
+
+        opponents.push({ name, position, hand });
+    });
+
+    const positionNameMap = new Map();
+    positionNameMap.set(heroPosition, 'Hero');
+    opponents.forEach(opp => positionNameMap.set(opp.position, opp.name));
+
+    const actionLines = [
+        ...parseActionLines(document.getElementById('scenario-preflop-actions')?.value, 'preflop', positionNameMap),
+        ...parseActionLines(document.getElementById('scenario-flop-actions')?.value, 'flop', positionNameMap),
+        ...parseActionLines(document.getElementById('scenario-turn-actions')?.value, 'turn', positionNameMap),
+        ...parseActionLines(document.getElementById('scenario-river-actions')?.value, 'river', positionNameMap),
+    ].filter(entry => entry.position && entry.action);
+
+    const heroAction = {
+        action_type: actionTypeSelect.value,
+        amount: parseInt(actionAmountInput.value) || 0,
+    };
+
+    return {
+        hero_hand: heroHand,
+        hero_position: heroPosition,
+        stage,
+        community_cards: communityCards,
+        opponents,
+        hero_action: heroAction,
+        action_lines: actionLines,
+    };
+}
+
+function setScenarioStatus(message, isError = false) {
+    const status = document.getElementById('scenario-status');
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = isError ? '#c0392b' : '#475467';
+}
+
+async function submitScenarioAnalysis() {
+    try {
+        setScenarioStatus('情境分析中...', false);
+        const payload = collectScenarioPayload();
+
+        const response = await fetch(`${API_BASE}/scenario_evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            setScenarioStatus(`分析失敗：${data.detail || '請檢查輸入格式。'}`, true);
+            return;
+        }
+
+        renderFeedback(data);
+        setScenarioStatus('情境分析完成。');
+    } catch (error) {
+        console.error('Scenario evaluation error', error);
+        setScenarioStatus('無法完成情境分析，請稍後再試。', true);
+    }
+}
+
 async function submitCustomHand() {
     const select = document.getElementById('hand-player-select');
     const card1Input = document.getElementById('card1-input');
@@ -760,6 +911,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const setHandBtn = document.getElementById('set-hand-btn');
     if (setHandBtn) {
         setHandBtn.addEventListener('click', submitCustomHand);
+    }
+
+    // 初始化情境分析表單
+    const heroPosSelect = document.getElementById('scenario-hero-position');
+    if (heroPosSelect) {
+        heroPosSelect.innerHTML = buildPositionOptions('BTN');
+    }
+
+    const opponentList = document.getElementById('opponent-list');
+    let opponentCount = 0;
+    const addOpponentBtn = document.getElementById('add-opponent-btn');
+
+    const addOpponentRow = () => {
+        if (!opponentList) return;
+        opponentCount += 1;
+        opponentList.appendChild(createOpponentRow(opponentCount));
+    };
+
+    if (addOpponentBtn) {
+        addOpponentBtn.addEventListener('click', addOpponentRow);
+    }
+
+    addOpponentRow();
+
+    const submitScenarioBtn = document.getElementById('submit-scenario-btn');
+    if (submitScenarioBtn) {
+        submitScenarioBtn.addEventListener('click', submitScenarioAnalysis);
     }
 
     updateAnalysisButton();
