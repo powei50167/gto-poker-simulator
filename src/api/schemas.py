@@ -91,6 +91,7 @@ class ScenarioEvaluateRequest(BaseModel):
     community_cards: List[str] = []
     opponents: List[ScenarioOpponent] = []
     action_lines: List[ScenarioActionLine] = []
+    table_size: int = 6
 
 
 class SetHandRequest(BaseModel):
