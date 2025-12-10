@@ -484,7 +484,7 @@ function createOpponentRow(index = 1) {
     wrapper.innerHTML = `
         <div>
             <label>對手名稱</label>
-            <input type="text" class="opponent-name" placeholder="Villain${index}" value="Villain${index}" aria-label="對手 ${index} 名稱">
+            <input type="text" class="opponent-name" placeholder="player${index}" value="player${index}" aria-label="對手 ${index} 名稱">
         </div>
         <div>
             <label>位置</label>
@@ -492,7 +492,7 @@ function createOpponentRow(index = 1) {
         </div>
         <div>
             <label>手牌 (可空白)</label>
-            <input type="text" class="opponent-hand" id="opponent-hand-${index}" data-hand-label="Villain${index} 手牌" placeholder="9h 9s" aria-label="對手 ${index} 手牌">
+            <input type="text" class="opponent-hand" id="opponent-hand-${index}" data-hand-label="Villain${index} 手牌" aria-label="對手 ${index} 手牌">
         </div>
     `;
     return wrapper;

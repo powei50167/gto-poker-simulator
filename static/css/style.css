@@ -1155,7 +1155,13 @@ button:disabled {
 
 .opponent-row input,
 .opponent-row select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #1f1f1f;
+    color: #f0f0f0;
     width: 100%;
+    font-size: 16px;
 }
 
 .scenario-actions {
@@ -1196,3 +1202,11 @@ button:disabled {
     font-size: 0.95em;
 }
 
+.opponent-position{
+    background: transparent;
+    border: 1px solid #d1c44a;
+    color: #b9d1ff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: none;
+}
