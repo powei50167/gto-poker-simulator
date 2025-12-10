@@ -153,10 +153,12 @@ function positionPlayerSlots() {
         if (!slot) return;
 
         let angleDeg = currentSeatAngles[seat] || 0;
-        
+
         // 轉換為弧度
         const angleRad = angleDeg * (Math.PI / 180);
         let radius = radiusPercent;
+
+        const isHeroSlot = slot.classList.contains('hero-seat');
 
         // ⭐ 例如 seat1 是最上方 → 向圓心靠近 4%
         if (seat === 1) {
@@ -171,6 +173,10 @@ function positionPlayerSlots() {
         }
         if (seat === 4) {
             radius -= 4;   // 向外擴 4%（可調 2~10）
+        }
+
+        if (isHeroSlot) {
+            radius -= 10;  // 讓 Hero 位置更靠近桌內，避免遮擋下方操作區
         }
         // 計算中心點座標 (使用百分比)
         // COS 配合 LEFT (X 軸)
@@ -311,23 +317,47 @@ function renderGameState(state) {
             const turnBadge = isTurn ? '<span class="turn-indicator">輪到此位</span>' : '';
             const heroBadge = isHero ? '<span class="status-pill hero">Hero</span>' : '';
 
-            slotContent = `
-                <div class="seat-header">
-                    <div class="seat-label">Seat ${p.seat_number}</div>
-                    <div class="position-pill">${p.position}</div>
-                    ${heroBadge}
-                </div>
-                <div class="player-name-row">
-                    <span class="player-name">${p.name}</span>
-                    ${turnBadge}
-                </div>
-                <div class="stack-row">
-                    <span class="stack-chip">籌碼 $${p.chips}</span>
-                    <span class="stack-pot">進池 $${p.in_pot}</span>
-                </div>
-                <div class="hand-wrapper">${handHtml}</div>
-                <div class="status-row">${statusPill}</div>
-            `;
+            slotContent = isHero
+                ? `
+                    <div class="hero-slot">
+                        <div class="hero-info">
+                            <div class="seat-header">
+                                <div class="seat-label">Seat ${p.seat_number}</div>
+                                <div class="position-pill">${p.position}</div>
+                                ${heroBadge}
+                            </div>
+                            <div class="player-name-row">
+                                <span class="player-name">${p.name}</span>
+                                ${turnBadge}
+                            </div>
+                            <div class="stack-row">
+                                <span class="stack-chip">籌碼 $${p.chips}</span>
+                                <span class="stack-pot">進池 $${p.in_pot}</span>
+                            </div>
+                            <div class="status-row">${statusPill}</div>
+                        </div>
+                        <div class="hero-hand">
+                            <div class="hand-wrapper">${handHtml}</div>
+                        </div>
+                    </div>
+                `
+                : `
+                    <div class="seat-header">
+                        <div class="seat-label">Seat ${p.seat_number}</div>
+                        <div class="position-pill">${p.position}</div>
+                        ${heroBadge}
+                    </div>
+                    <div class="player-name-row">
+                        <span class="player-name">${p.name}</span>
+                        ${turnBadge}
+                    </div>
+                    <div class="stack-row">
+                        <span class="stack-chip">籌碼 $${p.chips}</span>
+                        <span class="stack-pot">進池 $${p.in_pot}</span>
+                    </div>
+                    <div class="hand-wrapper">${handHtml}</div>
+                    <div class="status-row">${statusPill}</div>
+                `;
         } else {
             // 閒置位置
             slotClass = 'idle';

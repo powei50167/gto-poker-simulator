@@ -329,6 +329,45 @@ button:disabled {
     backdrop-filter: blur(2px);
 }
 
+.player-slot.hero-seat {
+    width: 340px;
+    min-height: 110px;
+    padding: 12px 14px;
+}
+
+.player-slot.hero-seat .hero-slot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.player-slot.hero-seat .hero-info {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 6px;
+}
+
+.player-slot.hero-seat .hero-info .seat-header,
+.player-slot.hero-seat .hero-info .player-name-row,
+.player-slot.hero-seat .hero-info .stack-row,
+.player-slot.hero-seat .hero-info .status-row {
+    grid-column: 1 / -1;
+}
+
+.player-slot.hero-seat .hero-hand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 4px;
+}
+
+.player-slot.hero-seat .hand-wrapper {
+    margin-top: 0;
+}
+
 /* 閒置玩家（灰底） */
 .player-slot.idle {
     background: linear-gradient(160deg, rgba(68, 68, 68, 0.75), rgba(38, 38, 38, 0.95));
