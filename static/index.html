@@ -106,7 +106,34 @@
                     <div class="scenario-grid">
                         <div class="scenario-field">
                             <label for="scenario-hero-hand">Hero 手牌</label>
-                            <input id="scenario-hero-hand" type="text" placeholder="As Kd">
+                            <div class="hand-input-row">
+                                <input id="scenario-hero-hand" type="text" placeholder="As Kd">
+                                <button id="scenario-clear-hand" type="button" class="ghost-btn">清除</button>
+                            </div>
+                            <div class="card-picker" aria-label="選擇手牌">
+                                <div class="picker-row suits" id="scenario-suit-options">
+                                    <button type="button" data-suit="s" class="pill active">♠ 黑桃</button>
+                                    <button type="button" data-suit="h" class="pill">♥ 紅心</button>
+                                    <button type="button" data-suit="d" class="pill">♦ 方塊</button>
+                                    <button type="button" data-suit="c" class="pill">♣ 梅花</button>
+                                </div>
+                                <div class="picker-row ranks" id="scenario-rank-options">
+                                    <button type="button" data-rank="A">A</button>
+                                    <button type="button" data-rank="K">K / 13</button>
+                                    <button type="button" data-rank="Q">Q / 12</button>
+                                    <button type="button" data-rank="J">J / 11</button>
+                                    <button type="button" data-rank="T">10</button>
+                                    <button type="button" data-rank="9">9</button>
+                                    <button type="button" data-rank="8">8</button>
+                                    <button type="button" data-rank="7">7</button>
+                                    <button type="button" data-rank="6">6</button>
+                                    <button type="button" data-rank="5">5</button>
+                                    <button type="button" data-rank="4">4</button>
+                                    <button type="button" data-rank="3">3</button>
+                                    <button type="button" data-rank="2">2</button>
+                                </div>
+                                <div class="picker-selected" id="scenario-selected-cards"></div>
+                            </div>
                         </div>
                         <div class="scenario-field">
                             <label for="scenario-hero-position">Hero 位置</label>

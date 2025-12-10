@@ -10,6 +10,10 @@ body {
 
 }
 
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 #app-container {
     display: flex;
     width: 100%;
@@ -960,6 +964,99 @@ button:disabled {
     font-size: 14px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hand-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.hand-input-row input {
+    flex: 1;
+}
+
+.hand-input-row .ghost-btn {
+    padding: 10px 14px;
+    min-width: 70px;
+}
+
+.card-picker {
+    margin-top: 10px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.picker-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.picker-row button {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f4f4f4;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-weight: 700;
+    min-width: 54px;
+}
+
+.picker-row button:hover:not(:disabled) {
+    background: rgba(111, 168, 255, 0.15);
+    border-color: rgba(111, 168, 255, 0.5);
+}
+
+.picker-row .pill {
+    border-radius: 999px;
+    padding: 8px 14px;
+}
+
+.picker-row .pill.active {
+    background: linear-gradient(135deg, #1f5dd3, #0f3ea3);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.picker-row.ranks button.active {
+    background: linear-gradient(135deg, #6fa8ff, #3d6ad6);
+    color: #0c0c0c;
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.picker-selected {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 32px;
+    color: #c9d6ff;
+}
+
+.picker-selected .selected-card {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(111, 168, 255, 0.14);
+    border: 1px solid rgba(111, 168, 255, 0.35);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+
+.picker-selected .selected-card .remove {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #ffdca8;
+    font-size: 15px;
+    padding: 0 2px;
 }
 
 #scenario-panel .ghost-btn {
