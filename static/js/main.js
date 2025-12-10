@@ -10,6 +10,7 @@ let customHandEnabled = false;
 let currentTableSize = 6;
 let currentSeatOrder = [];
 let currentSeatAngles = {};
+const scenarioHandSelection = { activeSuit: 's', selectedCards: [] };
 
 const TABLE_LAYOUTS = {
     6: {
@@ -518,6 +519,81 @@ function parseActionLines(textValue, stage, positionNameMap) {
     });
 }
 
+function setScenarioHandInputValue(cards) {
+    const heroHandInput = document.getElementById('scenario-hero-hand');
+    if (!heroHandInput) return;
+    heroHandInput.value = cards.join(' ');
+}
+
+function renderScenarioHandSelection() {
+    const container = document.getElementById('scenario-selected-cards');
+    if (!container) return;
+
+    if (!scenarioHandSelection.selectedCards.length) {
+        container.textContent = '點擊花色與牌值快速填入手牌。';
+        return;
+    }
+
+    container.innerHTML = scenarioHandSelection.selectedCards.map(card => {
+        const suit = card.slice(-1);
+        const rank = card.slice(0, -1);
+        const suitSymbol = { s: '♠', h: '♥', d: '♦', c: '♣' }[suit] || '';
+        return `<span class="selected-card">${rank}${suitSymbol}<button class="remove" data-card="${card}" aria-label="移除 ${card}">×</button></span>`;
+    }).join('');
+}
+
+function highlightScenarioPickerButtons() {
+    const suitRow = document.getElementById('scenario-suit-options');
+    if (suitRow) {
+        suitRow.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.suit === scenarioHandSelection.activeSuit);
+        });
+    }
+
+    const rankRow = document.getElementById('scenario-rank-options');
+    if (rankRow) {
+        rankRow.querySelectorAll('button').forEach(btn => {
+            const rank = btn.dataset.rank;
+            const card = `${rank}${scenarioHandSelection.activeSuit}`;
+            const isSelected = scenarioHandSelection.selectedCards.includes(card);
+            btn.classList.toggle('active', isSelected);
+        });
+    }
+}
+
+function syncScenarioHandInput() {
+    setScenarioHandInputValue(scenarioHandSelection.selectedCards);
+    renderScenarioHandSelection();
+    highlightScenarioPickerButtons();
+}
+
+function toggleScenarioCard(rank) {
+    const suit = scenarioHandSelection.activeSuit || 's';
+    const card = `${rank}${suit}`;
+
+    const existingIndex = scenarioHandSelection.selectedCards.indexOf(card);
+    if (existingIndex !== -1) {
+        scenarioHandSelection.selectedCards.splice(existingIndex, 1);
+    } else {
+        if (scenarioHandSelection.selectedCards.length >= 2) {
+            scenarioHandSelection.selectedCards.shift();
+        }
+        scenarioHandSelection.selectedCards.push(card);
+    }
+
+    syncScenarioHandInput();
+}
+
+function setScenarioHandFromInput(inputValue) {
+    const parsed = parseCardsFromInput(inputValue).slice(0, 2);
+    if (parsed.length) {
+        const lastSuit = parsed[parsed.length - 1].slice(-1);
+        scenarioHandSelection.activeSuit = lastSuit || scenarioHandSelection.activeSuit;
+    }
+    scenarioHandSelection.selectedCards = parsed;
+    syncScenarioHandInput();
+}
+
 function collectScenarioPayload() {
     const heroHandInput = document.getElementById('scenario-hero-hand');
     const heroPositionSelect = document.getElementById('scenario-hero-position');
@@ -916,6 +992,52 @@ document.addEventListener('DOMContentLoaded', () => {
         heroPosSelect.innerHTML = buildPositionOptions('BTN');
     }
 
+    const heroHandInput = document.getElementById('scenario-hero-hand');
+    if (heroHandInput) {
+        heroHandInput.addEventListener('input', (event) => setScenarioHandFromInput(event.target.value));
+    }
+
+    const suitRow = document.getElementById('scenario-suit-options');
+    if (suitRow) {
+        suitRow.addEventListener('click', (event) => {
+            const btn = event.target.closest('button[data-suit]');
+            if (!btn) return;
+            scenarioHandSelection.activeSuit = btn.dataset.suit;
+            highlightScenarioPickerButtons();
+        });
+    }
+
+    const rankRow = document.getElementById('scenario-rank-options');
+    if (rankRow) {
+        rankRow.addEventListener('click', (event) => {
+            const btn = event.target.closest('button[data-rank]');
+            if (!btn) return;
+            toggleScenarioCard(btn.dataset.rank);
+        });
+    }
+
+    const selectedCards = document.getElementById('scenario-selected-cards');
+    if (selectedCards) {
+        selectedCards.addEventListener('click', (event) => {
+            const btn = event.target.closest('button.remove');
+            if (!btn) return;
+            const card = btn.dataset.card;
+            const idx = scenarioHandSelection.selectedCards.indexOf(card);
+            if (idx !== -1) {
+                scenarioHandSelection.selectedCards.splice(idx, 1);
+                syncScenarioHandInput();
+            }
+        });
+    }
+
+    const clearHandBtn = document.getElementById('scenario-clear-hand');
+    if (clearHandBtn) {
+        clearHandBtn.addEventListener('click', () => {
+            scenarioHandSelection.selectedCards = [];
+            syncScenarioHandInput();
+        });
+    }
+
     const opponentList = document.getElementById('opponent-list');
     let opponentCount = 0;
     const addOpponentBtn = document.getElementById('add-opponent-btn');
@@ -932,6 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addOpponentRow();
 
+    syncScenarioHandInput();
     const submitScenarioBtn = document.getElementById('submit-scenario-btn');
     if (submitScenarioBtn) {
         submitScenarioBtn.addEventListener('click', submitScenarioAnalysis);
