@@ -928,11 +928,41 @@ button:disabled {
     line-height: 1.5;
 }
 
+.scenario-table-settings {
+    grid-column: 1 / -1;
+}
+
+.scenario-subgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px 14px;
+}
+
+.scenario-subfield label {
+    margin-bottom: 4px;
+}
+
+.card-picker-block {
+    margin-top: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .scenario-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 14px 16px;
     margin-top: 10px;
+}
+
+.field-group-title {
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #f0f4ff;
+    margin-bottom: 10px;
 }
 
 .scenario-field {
