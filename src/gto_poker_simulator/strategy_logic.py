@@ -64,7 +64,7 @@ class StrategyLogic:
         # System Prompt（最終優化版）
         # ---------------------------------------------------------
         system_prompt = """
-    你是一位頂尖德州撲克 6-max 現金桌 GTO 教練。
+    你是一位頂尖德州撲克 6-max 跟 9-max 現金桌 GTO 教練。
     你的任務是輸出穩定、合理、貼近 solver 風格的 JSON 評價。
 
     【GTO 基本原則】
@@ -247,7 +247,7 @@ class StrategyLogic:
             to_call = max(game_state.current_bet - acting_player.current_round_bet, 0)
 
         prompt = f"""
-你現在扮演德州撲克6人現金桌玩家，請根據gto策略分析以下桌面資訊給出你的行動並回傳 JSON：
+你現在扮演德州撲克6人或9人現金桌玩家，請根據gto策略分析以下桌面資訊給出你的行動並回傳 JSON：
 
 {self._build_state_description(game_state, acting_player.hand if acting_player else [])}
 剩餘籌碼：{acting_stack}
@@ -274,7 +274,7 @@ class StrategyLogic:
                 response = self.client.responses.create(
                     model="gpt-5.1",
                     input=[
-                        {"role": "system", "content": "你是一位德州撲克6人現金桌玩家，請根據gto策略給出合理行動。"},
+                        {"role": "system", "content": "你是一位德州撲克6人或9人現金桌玩家，請根據gto策略給出合理行動。"},
                         {"role": "user", "content": prompt},
                     ],
                 )

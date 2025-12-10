@@ -17,9 +17,9 @@ const TABLE_LAYOUTS = {
         seatAngles: {
             1: 270, // 頂部
             2: 330, // 右上
-            3: 30,  // 右下
+            3: 15,  // 右下
             4: 90,  // 底部
-            5: 150, // 左下
+            5: 165, // 左下
             6: 210  // 左上
         },
     },
@@ -176,7 +176,7 @@ function positionPlayerSlots() {
         }
 
         if (isHeroSlot) {
-            radius -= 10;  // 讓 Hero 位置更靠近桌內，避免遮擋下方操作區
+            radius -= 14;  // 讓 Hero 位置更靠近桌內，避免遮擋下方操作區
         }
         // 計算中心點座標 (使用百分比)
         // COS 配合 LEFT (X 軸)
@@ -334,7 +334,6 @@ function renderGameState(state) {
                                 <span class="stack-chip">籌碼 $${p.chips}</span>
                                 <span class="stack-pot">進池 $${p.in_pot}</span>
                             </div>
-                            <div class="status-row">${statusPill}</div>
                         </div>
                         <div class="hero-hand">
                             <div class="hand-wrapper">${handHtml}</div>

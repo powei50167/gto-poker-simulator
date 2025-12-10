@@ -378,20 +378,17 @@ button:disabled {
 
 /* 棄牌玩家 */
 .player-slot.folded {
-    background-color: rgba(0, 0, 0, 0.65);
+    background-color: rgba(138, 135, 135, 0.65);
     opacity: 0.65;
     border-color: #444;
 }
 
 /* 當前行動玩家 */
 .player-slot.is-turn {
-    background: radial-gradient(circle at 30% 30%, rgba(255, 250, 205, 0.25), rgba(85, 85, 0, 0.7));
-    border-color: #ffe066;
-    box-shadow: 0 0 18px rgba(255, 240, 0, 0.55), 0 12px 24px rgba(0, 0, 0, 0.35);
+    border-color: #bfc215;
+    box-shadow: 0 0 18px rgba(59, 59, 58, 0.55), 0 12px 24px rgba(0, 0, 0, 0.35);
     color: white;
 }
-
-
 /* --- 決策區 --- */
 #action-panel {
     margin-top: 20px;
