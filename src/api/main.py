@@ -167,7 +167,11 @@ def _build_scenario_state(request: ScenarioEvaluateRequest) -> GameState:
         for line in request.action_lines
     ]
 
-    table_size = len(players)
+    table_size = request.table_size or len(players)
+    if table_size not in TABLE_CONFIGS:
+        raise ValueError("情境牌桌人數目前僅支援 6 或 9 人桌。")
+    if len(players) > table_size:
+        raise ValueError("情境中的玩家數量超過選擇的牌桌人數。")
 
     return GameState(
         pot_size=0,

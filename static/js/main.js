@@ -10,7 +10,11 @@ let customHandEnabled = false;
 let currentTableSize = 6;
 let currentSeatOrder = [];
 let currentSeatAngles = {};
-const scenarioHandSelection = { activeSuit: 's', selectedCards: [] };
+const scenarioHandSelection = {
+    activeSuit: 's',
+    selectedCards: [],
+    activeInputId: 'scenario-hero-hand',
+};
 
 const TABLE_LAYOUTS = {
     6: {
@@ -480,7 +484,7 @@ function createOpponentRow(index = 1) {
     wrapper.innerHTML = `
         <div>
             <label>對手名稱</label>
-            <input type="text" class="opponent-name" placeholder="Villain${index}">
+            <input type="text" class="opponent-name" placeholder="Villain${index}" value="Villain${index}" aria-label="對手 ${index} 名稱">
         </div>
         <div>
             <label>位置</label>
@@ -488,7 +492,7 @@ function createOpponentRow(index = 1) {
         </div>
         <div>
             <label>手牌 (可空白)</label>
-            <input type="text" class="opponent-hand" placeholder="9h 9s">
+            <input type="text" class="opponent-hand" id="opponent-hand-${index}" data-hand-label="Villain${index} 手牌" placeholder="9h 9s" aria-label="對手 ${index} 手牌">
         </div>
     `;
     return wrapper;
@@ -500,6 +504,18 @@ function parseCardsFromInput(inputValue) {
         .map(normalizeCardInput)
         .filter(Boolean);
     return tokens;
+}
+
+function updateOpponentHandLabel(rowElement) {
+    const nameInput = rowElement?.querySelector('.opponent-name');
+    const handInput = rowElement?.querySelector('.opponent-hand');
+    if (!handInput) return;
+
+    const label = nameInput && nameInput.value.trim()
+        ? `${nameInput.value.trim()} 手牌`
+        : '對手手牌';
+
+    handInput.dataset.handLabel = label;
 }
 
 function parseActionLines(textValue, stage, positionNameMap) {
@@ -519,27 +535,47 @@ function parseActionLines(textValue, stage, positionNameMap) {
     });
 }
 
-function setScenarioHandInputValue(cards) {
-    const heroHandInput = document.getElementById('scenario-hero-hand');
-    if (!heroHandInput) return;
-    heroHandInput.value = cards.join(' ');
+function getActiveHandInput() {
+    return document.getElementById(scenarioHandSelection.activeInputId);
+}
+
+function resolveHandLabel(inputEl) {
+    if (!inputEl) return 'Hero 手牌';
+    const explicitLabel = inputEl.dataset.handLabel;
+    if (explicitLabel) return explicitLabel;
+
+    const row = inputEl.closest('.opponent-row');
+    const nameInput = row?.querySelector('.opponent-name');
+    if (nameInput && nameInput.value.trim()) {
+        return `${nameInput.value.trim()} 手牌`;
+    }
+
+    return '手牌';
+}
+
+function setScenarioHandInputValue(cards, targetInput = getActiveHandInput()) {
+    if (!targetInput) return;
+    targetInput.value = cards.join(' ');
 }
 
 function renderScenarioHandSelection() {
     const container = document.getElementById('scenario-selected-cards');
     if (!container) return;
 
+    const targetLabel = resolveHandLabel(getActiveHandInput());
     if (!scenarioHandSelection.selectedCards.length) {
-        container.textContent = '點擊花色與牌值快速填入手牌。';
+        container.innerHTML = `<div class="picker-target">填入：${targetLabel}</div><div class="picker-empty">點擊花色與牌值快速填入手牌。</div>`;
         return;
     }
 
-    container.innerHTML = scenarioHandSelection.selectedCards.map(card => {
+    const cardsHtml = scenarioHandSelection.selectedCards.map(card => {
         const suit = card.slice(-1);
         const rank = card.slice(0, -1);
         const suitSymbol = { s: '♠', h: '♥', d: '♦', c: '♣' }[suit] || '';
         return `<span class="selected-card">${rank}${suitSymbol}<button class="remove" data-card="${card}" aria-label="移除 ${card}">×</button></span>`;
     }).join('');
+
+    container.innerHTML = `<div class="picker-target">填入：${targetLabel}</div><div class="picker-cards">${cardsHtml}</div>`;
 }
 
 function highlightScenarioPickerButtons() {
@@ -561,8 +597,10 @@ function highlightScenarioPickerButtons() {
     }
 }
 
-function syncScenarioHandInput() {
-    setScenarioHandInputValue(scenarioHandSelection.selectedCards);
+function syncScenarioHandInput(applyToInput = true) {
+    if (applyToInput) {
+        setScenarioHandInputValue(scenarioHandSelection.selectedCards);
+    }
     renderScenarioHandSelection();
     highlightScenarioPickerButtons();
 }
@@ -584,19 +622,34 @@ function toggleScenarioCard(rank) {
     syncScenarioHandInput();
 }
 
-function setScenarioHandFromInput(inputValue) {
+function setScenarioHandFromInput(inputValue, targetInput = getActiveHandInput()) {
     const parsed = parseCardsFromInput(inputValue).slice(0, 2);
     if (parsed.length) {
         const lastSuit = parsed[parsed.length - 1].slice(-1);
         scenarioHandSelection.activeSuit = lastSuit || scenarioHandSelection.activeSuit;
     }
     scenarioHandSelection.selectedCards = parsed;
-    syncScenarioHandInput();
+    syncScenarioHandInput(false);
+    setScenarioHandInputValue(scenarioHandSelection.selectedCards, targetInput);
+}
+
+function setScenarioActiveTarget(targetInput) {
+    if (!targetInput || !targetInput.id) return;
+    scenarioHandSelection.activeInputId = targetInput.id;
+    const parsed = parseCardsFromInput(targetInput.value).slice(0, 2);
+    scenarioHandSelection.selectedCards = parsed;
+    if (parsed.length) {
+        const lastSuit = parsed[parsed.length - 1].slice(-1);
+        scenarioHandSelection.activeSuit = lastSuit || scenarioHandSelection.activeSuit;
+    }
+    renderScenarioHandSelection();
+    highlightScenarioPickerButtons();
 }
 
 function collectScenarioPayload() {
     const heroHandInput = document.getElementById('scenario-hero-hand');
     const heroPositionSelect = document.getElementById('scenario-hero-position');
+    const tableSizeSelect = document.getElementById('scenario-table-size');
     const stageSelect = document.getElementById('scenario-stage');
     const communityInput = document.getElementById('scenario-community');
     const actionTypeSelect = document.getElementById('scenario-action-type');
@@ -612,6 +665,7 @@ function collectScenarioPayload() {
     }
 
     const heroPosition = heroPositionSelect.value;
+    const tableSize = tableSizeSelect ? parseInt(tableSizeSelect.value, 10) || 6 : 6;
     const stage = stageSelect.value;
     const communityCards = parseCardsFromInput(communityInput ? communityInput.value : '');
 
@@ -655,6 +709,7 @@ function collectScenarioPayload() {
         opponents,
         hero_action: heroAction,
         action_lines: actionLines,
+        table_size: tableSize,
     };
 }
 
@@ -994,7 +1049,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const heroHandInput = document.getElementById('scenario-hero-hand');
     if (heroHandInput) {
-        heroHandInput.addEventListener('input', (event) => setScenarioHandFromInput(event.target.value));
+        heroHandInput.addEventListener('focus', () => setScenarioActiveTarget(heroHandInput));
+        heroHandInput.addEventListener('input', (event) => {
+            setScenarioActiveTarget(heroHandInput);
+            setScenarioHandFromInput(event.target.value, heroHandInput);
+        });
     }
 
     const suitRow = document.getElementById('scenario-suit-options');
@@ -1033,6 +1092,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearHandBtn = document.getElementById('scenario-clear-hand');
     if (clearHandBtn) {
         clearHandBtn.addEventListener('click', () => {
+            const heroInput = document.getElementById('scenario-hero-hand');
+            if (heroInput) {
+                setScenarioActiveTarget(heroInput);
+            }
             scenarioHandSelection.selectedCards = [];
             syncScenarioHandInput();
         });
@@ -1045,11 +1108,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const addOpponentRow = () => {
         if (!opponentList) return;
         opponentCount += 1;
-        opponentList.appendChild(createOpponentRow(opponentCount));
+        const row = createOpponentRow(opponentCount);
+        opponentList.appendChild(row);
+        updateOpponentHandLabel(row);
     };
 
     if (addOpponentBtn) {
         addOpponentBtn.addEventListener('click', addOpponentRow);
+    }
+
+    if (opponentList) {
+        opponentList.addEventListener('focusin', (event) => {
+            const handInput = event.target.closest('.opponent-hand');
+            if (handInput) {
+                setScenarioActiveTarget(handInput);
+            }
+        });
+
+        opponentList.addEventListener('click', (event) => {
+            const handInput = event.target.closest('.opponent-hand');
+            if (handInput) {
+                setScenarioActiveTarget(handInput);
+            }
+        });
+
+        opponentList.addEventListener('input', (event) => {
+            const target = event.target;
+            if (target.classList.contains('opponent-hand')) {
+                setScenarioActiveTarget(target);
+                setScenarioHandFromInput(target.value, target);
+                return;
+            }
+
+            if (target.classList.contains('opponent-name')) {
+                const row = target.closest('.opponent-row');
+                updateOpponentHandLabel(row);
+                if (row && row.querySelector(`#${scenarioHandSelection.activeInputId}`)) {
+                    renderScenarioHandSelection();
+                }
+            }
+        });
     }
 
     addOpponentRow();
