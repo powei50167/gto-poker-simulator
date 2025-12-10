@@ -110,67 +110,75 @@
                                 <input id="scenario-hero-hand" type="text" placeholder="As Kd">
                                 <button id="scenario-clear-hand" type="button" class="ghost-btn">清除</button>
                             </div>
-                            <div class="card-picker" aria-label="選擇手牌">
-                                <div class="picker-row suits" id="scenario-suit-options">
-                                    <button type="button" data-suit="s" class="pill active">♠ 黑桃</button>
-                                    <button type="button" data-suit="h" class="pill">♥ 紅心</button>
-                                    <button type="button" data-suit="d" class="pill">♦ 方塊</button>
-                                    <button type="button" data-suit="c" class="pill">♣ 梅花</button>
+                        </div>
+                        <div class="scenario-field scenario-table-settings">
+                            <div class="field-group-title">牌局設定</div>
+                            <div class="scenario-subgrid">
+                                <div class="scenario-subfield">
+                                    <label for="scenario-table-size">牌桌人數</label>
+                                    <select id="scenario-table-size">
+                                        <option value="6">6 人桌</option>
+                                        <option value="9">9 人桌</option>
+                                    </select>
                                 </div>
-                                <div class="picker-row ranks" id="scenario-rank-options">
-                                    <button type="button" data-rank="A">A</button>
-                                    <button type="button" data-rank="K">K / 13</button>
-                                    <button type="button" data-rank="Q">Q / 12</button>
-                                    <button type="button" data-rank="J">J / 11</button>
-                                    <button type="button" data-rank="T">10</button>
-                                    <button type="button" data-rank="9">9</button>
-                                    <button type="button" data-rank="8">8</button>
-                                    <button type="button" data-rank="7">7</button>
-                                    <button type="button" data-rank="6">6</button>
-                                    <button type="button" data-rank="5">5</button>
-                                    <button type="button" data-rank="4">4</button>
-                                    <button type="button" data-rank="3">3</button>
-                                    <button type="button" data-rank="2">2</button>
+                                <div class="scenario-subfield">
+                                    <label for="scenario-hero-position">Hero 位置</label>
+                                    <select id="scenario-hero-position"></select>
                                 </div>
-                                <div class="picker-selected" id="scenario-selected-cards"></div>
+                                <div class="scenario-subfield">
+                                    <label for="scenario-stage">牌局階段</label>
+                                    <select id="scenario-stage">
+                                        <option value="preflop">翻前</option>
+                                        <option value="flop">翻牌</option>
+                                        <option value="turn">轉牌</option>
+                                        <option value="river">河牌</option>
+                                    </select>
+                                </div>
+                                <div class="scenario-subfield">
+                                    <label for="scenario-community">公共牌 (可留空)</label>
+                                    <input id="scenario-community" type="text" placeholder="Ah 7s 2d">
+                                </div>
+                                <div class="scenario-subfield">
+                                    <label for="scenario-action-type">Hero 行動</label>
+                                    <select id="scenario-action-type">
+                                        <option value="Check">Check</option>
+                                        <option value="Call">Call</option>
+                                        <option value="Raise">Raise</option>
+                                        <option value="Fold">Fold</option>
+                                    </select>
+                                </div>
+                                <div class="scenario-subfield">
+                                    <label for="scenario-action-amount">行動金額 (如需)</label>
+                                    <input id="scenario-action-amount" type="number" min="0" value="0">
+                                </div>
                             </div>
                         </div>
-                        <div class="scenario-field">
-                            <label for="scenario-table-size">牌桌人數</label>
-                            <select id="scenario-table-size">
-                                <option value="6">6 人桌</option>
-                                <option value="9">9 人桌</option>
-                            </select>
-                        </div>
-                        <div class="scenario-field">
-                            <label for="scenario-hero-position">Hero 位置</label>
-                            <select id="scenario-hero-position"></select>
-                        </div>
-                        <div class="scenario-field">
-                            <label for="scenario-stage">牌局階段</label>
-                            <select id="scenario-stage">
-                                <option value="preflop">翻前</option>
-                                <option value="flop">翻牌</option>
-                                <option value="turn">轉牌</option>
-                                <option value="river">河牌</option>
-                            </select>
-                        </div>
-                        <div class="scenario-field">
-                            <label for="scenario-community">公共牌 (可留空)</label>
-                            <input id="scenario-community" type="text" placeholder="Ah 7s 2d">
-                        </div>
-                        <div class="scenario-field">
-                            <label for="scenario-action-type">Hero 行動</label>
-                            <select id="scenario-action-type">
-                                <option value="Check">Check</option>
-                                <option value="Call">Call</option>
-                                <option value="Raise">Raise</option>
-                                <option value="Fold">Fold</option>
-                            </select>
-                        </div>
-                        <div class="scenario-field">
-                            <label for="scenario-action-amount">行動金額 (如需)</label>
-                            <input id="scenario-action-amount" type="number" min="0" value="0">
+                    </div>
+                    <div class="card-picker-block" aria-label="選擇手牌">
+                        <div class="field-group-title">卡牌選擇器</div>
+                        <div class="card-picker" aria-label="選擇手牌">
+                            <div class="picker-row suits" id="scenario-suit-options">
+                                <button type="button" data-suit="s" class="pill active">♠ 黑桃</button>
+                                <button type="button" data-suit="h" class="pill">♥ 紅心</button>
+                                <button type="button" data-suit="d" class="pill">♦ 方塊</button>
+                                <button type="button" data-suit="c" class="pill">♣ 梅花</button>
+                            </div>
+                            <div class="picker-row ranks" id="scenario-rank-options">
+                                <button type="button" data-rank="A">A</button>
+                                <button type="button" data-rank="K">K / 13</button>
+                                <button type="button" data-rank="Q">Q / 12</button>
+                                <button type="button" data-rank="J">J / 11</button>
+                                <button type="button" data-rank="T">10</button>
+                                <button type="button" data-rank="9">9</button>
+                                <button type="button" data-rank="8">8</button>
+                                <button type="button" data-rank="7">7</button>
+                                <button type="button" data-rank="6">6</button>
+                                <button type="button" data-rank="5">5</button>
+                                <button type="button" data-rank="4">4</button>
+                                <button type="button" data-rank="3">3</button>
+                                <button type="button" data-rank="2">2</button>
+                            </div>
+                            <div class="picker-selected" id="scenario-selected-cards"></div>
                         </div>
                     </div>
                     <div class="scenario-hint-bar">
