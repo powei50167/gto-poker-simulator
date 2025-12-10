@@ -176,12 +176,9 @@ function positionPlayerSlots() {
             radius += 8;   // 向外擴 4%（可調 2~10）
         }
         if (seat === 4) {
-            radius -= 4;   // 向外擴 4%（可調 2~10）
+            radius -= 18;   // 向外擴 4%（可調 2~10）
         }
 
-        if (isHeroSlot) {
-            radius -= 14;  // 讓 Hero 位置更靠近桌內，避免遮擋下方操作區
-        }
         // 計算中心點座標 (使用百分比)
         // COS 配合 LEFT (X 軸)
         const xPercent = centerPercent + radius * Math.cos(angleRad);
