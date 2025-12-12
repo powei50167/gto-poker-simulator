@@ -64,58 +64,27 @@ class StrategyLogic:
         # System Prompt（最終優化版）
         # ---------------------------------------------------------
         system_prompt = """
-    你是一位頂尖德州撲克 6-max 跟 9-max 現金桌 GTO 教練。
-    你的任務是輸出穩定、合理、貼近 solver 風格的 JSON 評價。
+你是一位德州撲克 GTO solver 風格的教練。
+你的任務是依照一般 6-max/9-max solver 的行為，產生穩定、可預測的 JSON。
 
-    【GTO 基本原則】
-    - UTG 不 limp、不寬 defend 3bet，4bet bluff 極少（僅限 A5s/A4s）。
-    - 對抗 3bet + cold call：22–99 幾乎必須 fold。
-    - 小口袋 set-mine 僅在單挑 + 有位置 + 深籌碼才成立。
-    - AA 在 A-high flop（3bet/4bet pot）為高頻 call，raise < 10%。
-    - solver 罕見的行動（例如垃圾牌 defend）頻率須接近 0。
+【產出原則】
+1. 避免出現 solver 不會做的動作：
+   - 中強 value hand 不能 fold。
+   - 無牌力、無 blocker 的牌不得給予正 EV。
+2. EV 必須是小幅度（非真實 solver 計算），但需保持：
+   - Raise EV ≤ Call EV + 0.2bb
+   - Fold EV = 0（非 river）
+   - 所有 EV 在 [-0.5bb, +1.0bb] 內（依 street）
+3. 頻率規則：
+   - 最高 EV = 最高頻率
+   - 若某 EV < Fold EV 則頻率 = 0
+   - 所有頻率相加 ≤ 1（允許部份 0 機率）
+4. 不確定時：
+   - 用 Call 做主要行動（50–90%）
+   - Raise 為低頻率（0–20%）
+   - Fold 只在 EV 差距極大才使用（= 強制 0 或極小頻率）
 
-    【Preflop 防呆規則】
-    一、SB vs BTN open：
-    - J9o、T9o、T8o、98o、97o、87o、86o、76o 等 offsuit 垃圾牌必須 pure fold。
-    - 無 blocker、無 suited、無 high-card 的手牌不得出現正 EV。
-    - 允許 defend 僅限：J9s/T9s/98s/87s/76s、AJo、KQo、QJo、部分 suited Ax/Kx/Qx。
-
-    二、UTG / HJ / CO defend：
-    - 面對 3bet：所有 22–99（非 BB 小尺寸）純 fold。
-    - 不得用 offsuit 中低牌 call。
-    - 4bet bluff < 5%，且僅限 A5s/A4s。
-
-    三、SB 面對任意位置 open：
-    - 所有 offsuit 垃圾牌不得 call 或 raise。
-    - 若無 suited / blocker / broadway，EV 必須為負，頻率接近 0。
-
-    四、對抗 3bet + cold call：
-    - 所有 22–99 為 pure fold，不得給正 EV。
-    - 不得 4bet bluff（除 blocker 類）。
-
-    五、禁止虛構 preflop 均衡：
-    - 不可將 J9o、T8o、Q4o、K6o、A2o 等 hand 當作 defend 或 3bet。
-    - 若手牌無 blocker、無 suited、無牌力，Raise/Call EV 必須 < 0。
-
-    【EV 限制】
-    - Preflop 任一行動 EV 不得超過 ±0.5bb。
-    - Flop：EV 不得超過 ±0.5bb。
-    - Turn：EV 不得超過 ±1.0bb。
-    - River（非 all-in）：EV 不得超過 ±2.0bb。
-    - EV 差距（Raise vs Call）不得超過 0.3bb。
-    - 不得出現 +20bb、+40bb 等不合理 EV。
-
-    【頻率一致性】
-    - 最高 EV = 最高頻率。
-    - 若 Fold 為最佳，Fold 頻率 ≥ 90%。
-    - 若某行動 EV < Fold EV（=0 preflop），其頻率必須 = 0。
-
-    【不確定時的 fallback 策略】
-    - Preflop：Fold 為預設最佳（80–100%）。
-    - EV 採用小幅值（0.05 / 0.10 / 0.15）。
-    - Call 作為中性行動，Raise 為最低頻率。
-
-    請務必輸出完全合法 JSON，且禁止加入 JSON 以外的文字。
+請務必輸出符合 JSON schema 的資料，且禁止產生 JSON 外文字。
     """
 
         # ---------------------------------------------------------
@@ -159,6 +128,7 @@ class StrategyLogic:
     重要規則：
     - 只能使用合法行動：{legal_action_str}
     - frequency 必須 0–1
+    - 非法行動 EV=0 & frequency=0
     - JSON 之外不得輸出任何文字
     """
 
