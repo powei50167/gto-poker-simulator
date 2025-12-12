@@ -918,7 +918,9 @@ async function postAction(actionType, amount = 0) {
 }
 
 async function startNewHand() {
+    const startBtn = document.getElementById("start-hand-btn");
     try {
+        startBtn.disabled = true;
         // 重置反饋區與上一手分析狀態
         resetFeedbackDisplay();
         lastAnalysisAvailable = false;
@@ -930,6 +932,7 @@ async function startNewHand() {
         const state = await response.json();
         renderGameState(state);
         console.log("新牌局已開始！");
+        startBtn.disabled = false;
     } catch (error) {
         console.error("Error starting new hand:", error);
         alert("無法開始新牌局。請檢查後端伺服器。");
@@ -938,6 +941,7 @@ async function startNewHand() {
 
 async function switchTableSize() {
     const targetSize = currentTableSize === 9 ? 6 : 9;
+    const switchTableSizeBtn = document.getElementById("toggle-table-size-btn");
 
     resetFeedbackDisplay();
     lastAnalysisAvailable = false;
@@ -945,6 +949,7 @@ async function switchTableSize() {
     setCustomHandAvailability(true);
 
     try {
+        switchTableSizeBtn.disabled = true;
         const response = await fetch(`${API_BASE}/table_size`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -963,6 +968,7 @@ async function switchTableSize() {
         alert('無法切換牌桌人數，請稍後再試。');
     } finally {
         updateAnalysisButton();
+        switchTableSizeBtn.disabled = false;
     }
 }
 

@@ -104,6 +104,8 @@ button:disabled {
     border-radius: 10px;
     padding: 10px 12px;
     display: none;
+    position: relative;   /* 或 absolute，依你原本布局而定 */
+    z-index: 9999;        /* 提高層級，確保在最上面 */
 }
 
 #custom-hand-panel.visible {
@@ -1210,3 +1212,4 @@ button:disabled {
     border-radius: 8px;
     box-shadow: none;
 }
+
